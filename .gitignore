@@ -1,0 +1,13 @@
+#DO NOT LEAK
+.env
+credentials.json
+
+#Unimportant files
+__pycache__/
+NodeJS_stuff/
+test.py
+testingground.py
+testingground2.py
+
+#IDE files 
+.vscode/
