@@ -1,6 +1,10 @@
+#Discord Imports
 import discord
 from discord.ext import commands
 from discord import app_commands
+
+#Other Imports
+import time
 import random
 from typing import List
 
@@ -14,13 +18,15 @@ class generalCommands(commands.Cog):
     
     
     @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member):    
+    async def on_member_join(self, interaction: discord.Interaction, member: discord.Member):    
         channel = member.guild.system_channel
         if channel is not None: 
             await channel.send(f'Welcome {member.mention}.')
 
     @app_commands.command(name = "ping", description = "Latency test from you to the bot")
     async def ping(self, interaction: discord.Interaction):
+        commandStartTime = time.perf_counter()
+
         pingEmbed = discord.Embed(title = "Latency Test", color = discord.Color.blue())
         pingEmbed.add_field (
             name = f"{self.bot.user.name}'s Latency (ms) : ",
@@ -33,6 +39,8 @@ class generalCommands(commands.Cog):
         )
 
         await interaction.response.send_message(embed = pingEmbed)
+        commandEndTime = time.perf_counter()
+        print(f"Ping command executed in {commandEndTime - commandStartTime:0.4f} seconds\n") #Track how long the command takes to execute
 
 
     @app_commands.command(name = "remind", description = "Mention members with an optional message")
@@ -43,7 +51,10 @@ class generalCommands(commands.Cog):
         members: discord.Member, 
         message : str = None
         ):
-        
+
+        print(f"{interaction.user} is trying to remind {members} with message: {message}")
+        commandStartTime = time.perf_counter() 
+
         if not members :
             await interaction.response.send_message("You must mention at least one member❗", ephemeral= True) #error mesage
             return  #returns nothing ~ as an error. Then the message above will appear only to you
@@ -60,7 +71,10 @@ class generalCommands(commands.Cog):
         try :
             await interaction.response.send_message(f"{members.mention} {msg}") 
         except Exception as e:
-            print(f"Failed to send message {e}")
+            print(f"Failed to send message {e}\n")
+
+        commandEndTime = time.perf_counter()
+        print(f"Remind command executed in {commandEndTime - commandStartTime:0.4f} seconds\n") #Track how long the command takes to execute
 
     
 async def setup(bot: commands.Bot):
