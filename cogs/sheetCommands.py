@@ -89,8 +89,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
 
         # Remove duplicates while preserving order
         activityList = list(dict.fromkeys(allActivities))
-        activityList.sort()
-
+        activityList.sort() # Sort for consistency sake
 
         activityOptions = []    
         for activity in activityList:
@@ -101,7 +100,6 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
                 )
             )
         
-
         super().__init__(
             placeholder = "Select your activity",
             options = activityOptions,
@@ -148,7 +146,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
             await interaction.followup.send(f"{interaction.user.mention}, none of your selected activities are valid! Please try again or register it as your activity!", ephemeral=True)
             return 
 
-        #Update to sheet once there's at least one valid activity
+        #Update to sheets (Check-in)
         print("Syncing to sheets")
         sheet = sheetInitialization() 
         worksheet = sheet.worksheet(username) # Get the worksheet for the userID
@@ -272,7 +270,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
             await interaction.followup.send(f"{interaction.user.mention} has checked in for {valid} activities, but also had invalid ones: {invalid}")
 
         commandEndTime = time.perf_counter()
-        print(f"Checkin executed in {commandEndTime - commandStartTime:.4f} seconds")
+        print(f"Checkin executed in {commandEndTime - commandStartTime:.4f} seconds\n")
         
     async def on_timeout(self,interaction: discord.Interaction):
         await interaction.response.send_message("Check-in menu timed out")
@@ -452,7 +450,7 @@ class CheckoutMenu(discord.ui.Select):
         saveTimeCheckins(timeCheckedInDICT) # Save the updated dictionary back to the JSON file
         
         commandEndTime = time.perf_counter()
-        print(f"Checkout executed in {commandEndTime - commandStartTime:.4f} seconds")
+        print(f"Checkout executed in {commandEndTime - commandStartTime:.4f} seconds\n")
 
     async def on_timeout(self,interaction: discord.Interaction):
         await interaction.response.send_message("Check-out menu timed out")
@@ -551,7 +549,7 @@ class sheetCommands(commands.Cog):
         
         print(f"{interaction.user.name} successfully registered as {name} with activities: {', '.join(activitiesList)}.")
         commandsEndTime = time.perf_counter()
-        print(f"Registration executed in {commandsEndTime - commandStartTime:.4f} seconds")
+        print(f"Registration executed in {commandsEndTime - commandStartTime:.4f} seconds\n")
         
         await interaction.followup.send(f"{interaction.user.mention} successfully registered as {name} with activities: {", ".join(activitiesList)}.")
 
@@ -570,7 +568,7 @@ class sheetCommands(commands.Cog):
         try:
             await interaction.response.send_message("Please select your activity:", view=CheckinMenuView())
         except Exception as error:
-            print("Error in checkinMenu:", error)
+            print(f"Error in checkinMenu: {error}\n")
             await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
 
 
@@ -582,7 +580,7 @@ class sheetCommands(commands.Cog):
         try:
             await interaction.response.send_message("Please select your activity to check-out:", view=CheckoutMenuView(userID))
         except Exception as error:
-            print("Error in checkoutMenu:", error)
+            print(f"Error in checkoutMenu: {error}\n")
 
 
 async def setup(bot: commands.Bot):
