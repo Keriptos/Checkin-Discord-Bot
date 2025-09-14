@@ -17,7 +17,7 @@ class Moderation(commands.Cog) :
 
 
     @app_commands.command(name = "clear", description= "(ADMIN ONLY) Purges a certain amount of text in a channel")    
-    @app_commands.checks.has_permissions(manage_messages = True)
+    @app_commands.checks.has_role("Botministrator")
     @app_commands.describe(amount = "The amount of messages to delete")
     async def purgeMessages(self, interaction: discord.Interaction, amount: int):
         print(f"{interaction.user} is trying to purge {amount} messages")
@@ -40,6 +40,13 @@ class Moderation(commands.Cog) :
         commandEndTime = time.perf_counter()
         print(f"Cleared {len(deletedMessages)} messages in {commandEndTime - commandStartTime:0.4f} seconds\n")
 
+    @purgeMessages.error
+    async def purgeError(self, interaction: discord.Interaction, error):
+        if isinstance(error, app_commands.errors.MissingRole) :
+            await interaction.response.send_message("You don't have the required role to use this command❗", ephemeral=True)
+        else :
+            await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
+            print(f"An error has occured when a user tried to purge messages: {error}\n")
 
     @app_commands.command(name="sync", description="(ADMIN ONLY) Syncs the app commands")
     @app_commands.checks.has_role("Botministrator")
@@ -57,6 +64,15 @@ class Moderation(commands.Cog) :
         
         commandEndTime = time.perf_counter()
         print(f"Synced {len(syncedCommands)} commands in {commandEndTime - commandStartTime:0.4f} seconds\n")
+    
+    @syncCommands.error
+    async def syncError(self, interaction: discord.Interaction, error):
+        if isinstance(error, app_commands.errors.MissingRole) :
+            print(f"{interaction.user} tried to sync commands without the required role\n")
+            await interaction.response.send_message("You don't have the required role to use this command❗", ephemeral=True)
+        else :
+            print(f"An error has occured when a user tried to sync commands: {error}\n")
+            await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Moderation(bot), guild=GUILD_ID)
