@@ -1,6 +1,6 @@
 #DO NOT LEAK
 .env
-credentials.json
+*.json
 
 #Unimportant files
 __pycache__/
