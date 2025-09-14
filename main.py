@@ -18,12 +18,13 @@ bot = commands.Bot(command_prefix = None,  intents = discord.Intents.all()) # co
 @bot.event
 async def on_ready():
     print("Bot Ready!") 
-    # Sync commands to the bot
     
+    # Sync commands to the bot
     try :
         GUILD_ID = discord.Object(id = 1391372922219659435) #This is my server's ID, and I'm only gonna use it for my server
         syncedCommands = await bot.tree.sync(guild= GUILD_ID) #It'll return a list of commands that had been synced
         print(f"Synced {len(syncedCommands)} commands.")
+        await bot.get_channel(1393987877599445115).send(f"@here Bot is online!") # Announce in the channel(check-ins-out) that bot is online
     except Exception as error:
         print("An error with syncing app commands has occured : ", error)
     
