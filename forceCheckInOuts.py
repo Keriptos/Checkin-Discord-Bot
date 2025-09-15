@@ -1,3 +1,5 @@
+#DO NOT PUT THIS IN COGS FOLDER, THIS IS MADE TO RUN LOCALLY
+
 #Google Sheets Imports
 import gspread 
 from google.oauth2.service_account import Credentials
