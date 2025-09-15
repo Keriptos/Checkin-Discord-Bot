@@ -82,13 +82,11 @@ with open('users.json') as file:
 with open('checkintimes.json', 'r') as file:
     timeCheckedIn = json.load(file) # Set timeCheckedIn to the data from the JSON file
 
-userID = "181760450273214464" # Sam
+userID = "YOUR USER ID" # Replace with the actual user ID
 username = ID_to_name[userID]
 
-
-
 userActivities = loadJSON('userActivities.json')
-chosen = ["Exercising", "Studying"] # Example activity, should be replaced with actual user input
+chosen = ["Piano","Study","Writing"] # Example activity, should be replaced with actual user input
 chosen.sort()
 
 
@@ -249,15 +247,14 @@ class Checkout: # Check-out
 
         # Make a list from the activities the user has checked in to
         user_activitiesCheckedIn = list(dict.fromkeys(timeCheckedInDICT[username].keys()))
+        print(f"{username} selected {chosen}")
 
         for activity in chosen: #Iterate through the chosen activities, doesn't need to be sorted
             userTimeCheckedIn = datetime.datetime.fromisoformat(timeCheckedInDICT[username][activity])
             timeCheckedOut = datetime.datetime.now()
 
             elapsedTime :datetime.timedelta = timeCheckedOut - userTimeCheckedIn
-            #print(f"Checked in at {userTimeCheckedIn.strftime('%d %B ~ %H:%M:%S')}")
-            #print(f"Checked out at {timeCheckedOut.strftime('%d %B ~ %H:%M:%S')}")
-            print(f"{activity}'s elapsed time: {lockedInTime(elapsedTime)}")
+            print(f"{username}'s {activity.lower()} elapsed time: {lockedInTime(elapsedTime)}")
 
             #Copy algorithm like check-in, but paste DONE instead of ON PROGRESS for the cell update
             #Process to find row and column to update
@@ -268,10 +265,10 @@ class Checkout: # Check-out
 
             #Get the month name row (1-index based), has None in the list
             monthRowList = []
-            if userID != "591939252061732900":
+            if userID != "591939252061732900": # Other than A_user 
                 monthRowList = worksheet.row_values(activityOffset(userID)- 1) #Offset is 1-index based, so -1 to move back onto month cell, instead of activity cell
             else:
-                monthRowList = worksheet.row_values(3) # Alex only has 1 activity, so month is always on row 3 (1-index based)
+                monthRowList = worksheet.row_values(3) # A_user only has 1 activity, so month is always on row 3 (1-index based) ~ special case
 
             monthColumn = None
             #Loops through the monthRowList and stops until the month is found, should return the index of it
@@ -374,3 +371,4 @@ class Checkout: # Check-out
 
 #Checkin().checkin()
 #Checkout.checkout()
+# Activate either check-in or check-out by uncommenting the above lines

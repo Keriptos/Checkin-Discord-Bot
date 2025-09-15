@@ -257,8 +257,8 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
     
 
         if compiledRequests is not []:
-            print("Batch update successful.")
             worksheet.spreadsheet.batch_update({"requests": compiledRequests}) # Batch update all requests at once
+            print("Batch update successful.")
 
 
         # (ACTIVITY CHECKS) Only one of these checks will be triggered
@@ -313,6 +313,8 @@ class CheckoutMenu(discord.ui.Select):
         commandStartTime = time.perf_counter() # To record how long the command takes to execute
 
         chosen = self.values # A list of selected activities by user
+        chosen.sort()  # Sort for consistency sake, it only affects how it looks
+        print(f"{self.username} selected: {chosen}")
         timeCheckedInDICT = loadJSON('checkintimes.json')
 
         #Syncing to Sheets (Check-out)
@@ -327,6 +329,7 @@ class CheckoutMenu(discord.ui.Select):
             userTimeCheckedIn = datetime.datetime.fromisoformat(timeCheckedInDICT[self.username][activity])
             timeCheckedOut = datetime.datetime.now()
             elapsedTime :timedelta = timeCheckedOut - userTimeCheckedIn
+
             print(f"{interaction.user.name}'s {activity} elapsed time: {lockedInTime(elapsedTime)}")
             if len(chosen) == 1:
                 await interaction.followup.send(f"{interaction.user.mention} has checked out from the sheet for {activity} activity! Locked in for {lockedInTime(elapsedTime)}")
@@ -574,13 +577,21 @@ class sheetCommands(commands.Cog):
 
     @app_commands.command(name="checkoutmenu", description="Checks you out from the google sheet")
     async def checkoutMenu(self, interaction: discord.Interaction):
-        print("User is trying to checkout")
         userID = str(interaction.user.id)
+        ID_to_name = loadJSON('users.json')
+        username = ID_to_name[userID]
+        print(f"{username} is trying to checkout")
 
+        if userID not in ID_to_name: # Check if user is registered
+            print(f"{username} is not registered")
+            await interaction.response.send_message("You are not registered. Please register first.", ephemeral=True)
+            return
+        
         try:
             await interaction.response.send_message("Please select your activity to check-out:", view=CheckoutMenuView(userID))
         except Exception as error:
             print(f"Error in checkoutMenu: {error}\n")
+            await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
 
 
 async def setup(bot: commands.Bot):
