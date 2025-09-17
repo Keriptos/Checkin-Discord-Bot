@@ -5,13 +5,12 @@ from discord.ext import commands
 
 #Other Imports
 import os
-import time
 import asyncio
 from dotenv import load_dotenv
 
 load_dotenv(".env")
 TOKEN: str = os.getenv("TOKEN")
-    
+
 
 bot = commands.Bot(command_prefix = None,  intents = discord.Intents.all()) # command_prefix is not needed for app commands
 
