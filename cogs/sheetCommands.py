@@ -59,6 +59,8 @@ def activityOffset(userID): # Alex only has 1 activity registered, no need for a
         return 4
     elif userID == "582370335886802964": #Raf
         return 4
+    elif userID == "461526727521206282": #TestUser
+        return 4
     elif userID == "181760450273214464": #Chris
         return 40
     elif userID == "689028638544494621": #Nicholas
@@ -75,6 +77,8 @@ def rowOffset(userID): #Row offset is 0-index based. TEMP solution
      elif userID == "689028638544494621": #Nicholas
         return 39
      elif userID == "582370335886802964": #Raf
+        return 3
+     elif userID == "461526727521206282": #TestUser
         return 3
 
 class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 at once
@@ -151,41 +155,81 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
         sheet = sheetInitialization() 
         worksheet = sheet.worksheet(username) # Get the worksheet for the userID
         worksheetID = worksheet.id
-        for activity in valid:
-            date = datetime.datetime.fromisoformat(timeCheckedIn[username][activity]) # Get the value from userID, which is the time checked in for that specific user
 
-            #Only yearly table format(me) have different row and column algorithms, make a special case for them
-            #Process to find row and column to update 
-            rowToFind = date.day + rowOffset(userID) # 0-index based
+        date = datetime.datetime.now() # Get the value from userID, which is the time checked in for that specific user
 
-            # Getting column is pretty hard since it needs month and activity, which is under the month. So have to get month first
-            month = calendar.month_name[date.month] # Get the month name from the date
+        #Only yearly table format(me) have different row and column algorithms, make a special case for them
+        #Process to find row and column to update 
+        rowToFind = date.day + rowOffset(userID) # 0-index based
 
-            #Get the month name row (1-index based), has None in the list
-            monthRowList = []
-            if userID != "591939252061732900":
-                monthRowList = worksheet.row_values(activityOffset(userID)- 1) #Offset is 1-index based, so -1 to move back onto month cell, instead of activity cell
-            else:
-                monthRowList = worksheet.row_values(3) # Alex only has 1 activity, so month is always on row 3 (1-index based)
+        # Getting column is pretty hard since it needs month and activity, which is under the month. So have to get month first
+        month = calendar.month_name[date.month] # Get the month name from the date
 
-            monthColumn = None
-            #Loops through the monthRowList and stops until the month is found, should return the index of it
-            for i, value in enumerate(monthRowList): #Index must and will be 0-index based
-                if value is not None and value.strip().lower() == month.lower():
-                    monthColumn :int = i
-                    break
-            #Checks in case month is not found
-            if monthColumn is None:
-                raise ValueError (f"Month '{month}' not found") 
+        #Get the month name row (1-index based), has None in the list
+        monthRowList = []
+        if userID != "591939252061732900":
+            monthRowList = worksheet.row_values(activityOffset(userID)- 1) #Offset is 1-index based, so -1 to move back onto month cell, instead of activity cell
+        else:
+            monthRowList = worksheet.row_values(3) # Alex only has 1 activity, so month is always on row 3 (1-index based)
 
-            
+        monthColumn = None
+        #Loops through the monthRowList and stops until the month is found, should return the index of it
+        for i, value in enumerate(monthRowList): #Index must and will be 0-index based
+            if value is not None and value.strip().lower() == month.lower():
+                monthColumn :int = i
+                break
+        #Checks in case month is not found
+        if monthColumn is None:
+            raise ValueError (f"Month '{month}' not found") 
+        
 
-            #Get the column of the activity under the month found
-            if (username ==  'Alex'): # Only 1 activity algorithm
-                columnToFind = monthColumn 
+        #Get the column of the activity under the month found
+        if (username ==  'Alex'): # Only 1 activity algorithm
+            columnToFind = monthColumn 
 
-                #Request section
-                compiledRequests = [] # To store all requests for batch update for later
+            #Request section
+            compiledRequests = [] # To store all requests for batch update for later
+            pre_pasteLabels = { #ON PROGRESS to update cell | Check-in
+                "requests": [
+                    {
+                        "copyPaste": {
+                            "source": {
+                                # 0-index based
+                                "sheetId": worksheetID,
+                                "startRowIndex": 3,  # Copies "ON PROGRESS" Cell
+                                "startColumnIndex": 0,
+                                "endRowIndex": 4,
+                                "endColumnIndex": 1
+                            },
+                            "destination": {
+                                # 0-index based
+                                "sheetId": worksheetID,
+                                "startRowIndex": rowToFind,
+                                "startColumnIndex": columnToFind,
+                                "endRowIndex": rowToFind + 1,
+                                "endColumnIndex": columnToFind + 1
+                            },
+                            "pasteType": "PASTE_NORMAL",
+                            "pasteOrientation": "NORMAL"
+                        }
+                    }
+                ]
+            }
+            compiledRequests.extend(pre_pasteLabels["requests"]) # Add the requests to the compiled list
+
+        else:  # 2+ activity algorithm
+            columnToFind = []
+            activityRow = worksheet.row_values(activityOffset(userID)) #Get the 4th row (1-index based), does have None in the list
+            #Loops through the activityRow and stops until the first instance of activity is found, then set columnToFind as the index
+            for i in range(monthColumn, len(self.userActivities[username]) + monthColumn): #Index must and will be 0-index based
+                if activityRow[i] is not None and activityRow[i].lower() in [a.lower() for a in valid]: #Check if the activity matches
+                    columnToFind.append(i)
+            if columnToFind == []: #Checks in case activity is not found
+                raise ValueError (f"Activity '{valid}' not found under month '{month}'")
+        
+            #Request section
+            compiledRequests = [] # To store all requests for batch update
+            for i in columnToFind:
                 pre_pasteLabels = { #ON PROGRESS to update cell | Check-in
                     "requests": [
                         {
@@ -202,9 +246,9 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
                                     # 0-index based
                                     "sheetId": worksheetID,
                                     "startRowIndex": rowToFind,
-                                    "startColumnIndex": columnToFind,
+                                    "startColumnIndex": i,
                                     "endRowIndex": rowToFind + 1,
-                                    "endColumnIndex": columnToFind + 1
+                                    "endColumnIndex": i + 1
                                 },
                                 "pasteType": "PASTE_NORMAL",
                                 "pasteOrientation": "NORMAL"
@@ -213,53 +257,11 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
                     ]
                 }
                 compiledRequests.extend(pre_pasteLabels["requests"]) # Add the requests to the compiled list
-
-            else:  # 2+ activity algorithm
-                columnToFind = []
-                activityRow = worksheet.row_values(activityOffset(userID)) #Get the 4th row (1-index based), does have None in the list
-                #Loops through the activityRow and stops until the first instance of activity is found, then set columnToFind as the index
-                for i in range(monthColumn, len(self.userActivities[username]) + monthColumn): #Index must and will be 0-index based
-                    if activityRow[i] is not None and activityRow[i].lower() in [a.lower() for a in valid]: #Check if the activity matches
-                        columnToFind.append(i)
-                if columnToFind == []: #Checks in case activity is not found
-                    raise ValueError (f"Activity '{valid}' not found under month '{month}'")
-            
-                #Request section
-                compiledRequests = [] # To store all requests for batch update
-                for i in columnToFind:
-                    pre_pasteLabels = { #ON PROGRESS to update cell | Check-in
-                        "requests": [
-                            {
-                                "copyPaste": {
-                                    "source": {
-                                        # 0-index based
-                                        "sheetId": worksheetID,
-                                        "startRowIndex": 3,  # Copies "ON PROGRESS" Cell
-                                        "startColumnIndex": 0,
-                                        "endRowIndex": 4,
-                                        "endColumnIndex": 1
-                                    },
-                                    "destination": {
-                                        # 0-index based
-                                        "sheetId": worksheetID,
-                                        "startRowIndex": rowToFind,
-                                        "startColumnIndex": i,
-                                        "endRowIndex": rowToFind + 1,
-                                        "endColumnIndex": i + 1
-                                    },
-                                    "pasteType": "PASTE_NORMAL",
-                                    "pasteOrientation": "NORMAL"
-                                }
-                            }
-                        ]
-                    }
-                    compiledRequests.extend(pre_pasteLabels["requests"]) # Add the requests to the compiled list
     
 
         if compiledRequests is not []:
             worksheet.spreadsheet.batch_update({"requests": compiledRequests}) # Batch update all requests at once
             print("Batch update successful.")
-
 
         # (ACTIVITY CHECKS) Only one of these checks will be triggered
         if len(valid) >= 1 and len(invalid) == 0: # User only has valid activities
@@ -593,7 +595,14 @@ class sheetCommands(commands.Cog):
             print(f"Error in checkoutMenu: {error}\n")
             await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
 
+    @app_commands.command(name="testloop", description="loops twice")
+    async def testLoop(self, interaction: discord.Interaction):
+        testList = ["123","456"]
+        for index, value in enumerate(testList):
+            await interaction.response.send_message(f"Printed index: {index} with value: {value}")
 
+  
+    
 async def setup(bot: commands.Bot):
     GUILD_ID = discord.Object(id = 1391372922219659435) #This is my server's ID, and I'm only gonna use it for my server
     await bot.add_cog(sheetCommands(bot), guild = GUILD_ID)
