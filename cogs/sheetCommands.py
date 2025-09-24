@@ -299,13 +299,14 @@ class CheckoutMenu(discord.ui.Select):
         print(f"{self.username} selected: {chosen}")
         timeCheckedInDICT = loadJSON('checkintimes.json')
 
+        await interaction.response.defer()
+
         #Syncing to Sheets (Check-out)
         print("Syncing to sheets")
         sheet = sheetInitialization() # Initialize the sheet
         worksheet = sheet.worksheet(self.username) # Get the worksheet for the userID
         worksheetID = worksheet.id # Get the worksheetID for pasteLabels later on
 
-        await interaction.response.defer()
 
         for activity in chosen:
             userTimeCheckedIn = datetime.datetime.fromisoformat(timeCheckedInDICT[self.username][activity])
