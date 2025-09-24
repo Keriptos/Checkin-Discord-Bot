@@ -82,25 +82,21 @@ def rowOffset(userID): #Row offset is 0-index based. TEMP solution
         return 3
 
 class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 at once
-    def __init__(self):
-        self.userActivities = loadJSON('userActivities.json') #So that it can be used globally
-        
-        #Convert userActivities from dict to list
-        allActivities = []
-        for tempValues in self.userActivities.values():
-            for activity in tempValues:
-                allActivities.append(activity)
+    def __init__(self, userID: str):
+        self.userID = userID
+        self.ID_to_name = loadJSON('users.json')
+        self.username = self.ID_to_name[userID]
+        self.userActivities = loadJSON('userActivities.json') 
 
-        # Remove duplicates while preserving order
-        activityList = list(dict.fromkeys(allActivities))
-        activityList.sort() # Sort for consistency sake
+        # Basically make a list out of the activity keys from checkintimes.json UNDER their usernames
+        self.validUserActivities = list(dict.fromkeys(self.userActivities.get(self.username))) 
 
-        activityOptions = []    
-        for activity in activityList:
+        activityOptions = [] #To store activities based on userID
+        for activity in self.validUserActivities:
             activityOptions.append(
                 discord.SelectOption(
                     label = activity,
-                    description = f"Checks you into the sheet for {activity}"
+                    description = f"Checks you in from the sheet for {activity}"
                 )
             )
         
@@ -108,67 +104,53 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
             placeholder = "Select your activity",
             options = activityOptions,
             min_values = 1,
-            max_values = min(5, len(activityOptions)) #Hard limit
+            max_values = len(activityOptions) #Hard limit
         ) 
     
     async def callback(self, interaction: discord.Interaction):
         commandStartTime = time.perf_counter() # To record how long the command takes to execute
 
-        # All the necessary initializations
-        userID = str(interaction.user.id)
-        ID_to_name = loadJSON('users.json')
-        username = ID_to_name[userID]
-
+        
         # Menu related stuff
         chosen = self.values  # A list of selected activities by user
-        chosen.sort() # Sort for consistency sake, it only affects how it looks
-        print(f"{username} selected: {chosen}")
+        chosen.sort() # Sort for consistency sake, it only affects how it looks. Chosen will always be the user's registered activities
+        print(f"{self.username} selected: {chosen}")
         
         # Starts to handle checking in
         timeCheckedIn = loadJSON('checkintimes.json')
 
         await interaction.response.defer()
 
-        #Checks user's activities
-        valid = []
-        invalid = []
+        #Check-in user's time locally
         for activity in chosen:
-            if activity in self.userActivities.get(ID_to_name[userID], []):
-                valid.append(activity)
-                if username not in timeCheckedIn:
-                    timeCheckedIn[username] = {}
+            if activity in self.userActivities.get(self.ID_to_name[self.userID], []):
+                if self.username not in timeCheckedIn:
+                    timeCheckedIn[self.username] = {}
 
-                timeCheckedIn[username][activity] = datetime.datetime.now().isoformat() #username and activity = keys, time as the value into dictionary
-                saveTimeCheckins(timeCheckedIn) # Saves the check-in times for each activity
+                #Username and activity = keys, time as the value into dictionary
+                timeCheckedIn[self.username][activity] = datetime.datetime.now().isoformat() 
+        saveTimeCheckins(timeCheckedIn) # Saves once after processing all the check-in times (avoid multiple writes in loop)
 
-            else:
-                invalid.append(activity)
-
-        # If all activities are invalid
-        if len(valid) == 0: # User will be told of the invalid activities, and nothing will happen on the backend side (no updates on sheets)
-            print(f"{username}'s chosen activities are all invalid: {invalid}")
-            await interaction.followup.send(f"{interaction.user.mention}, none of your selected activities are valid! Please try again or register it as your activity!", ephemeral=True)
-            return 
 
         #Update to sheets (Check-in)
         print("Syncing to sheets")
         sheet = sheetInitialization() 
-        worksheet = sheet.worksheet(username) # Get the worksheet for the userID
+        worksheet = sheet.worksheet(self.username) # Get the worksheet for the userID
         worksheetID = worksheet.id
 
         date = datetime.datetime.now() # Get the value from userID, which is the time checked in for that specific user
 
         #Only yearly table format(me) have different row and column algorithms, make a special case for them
         #Process to find row and column to update 
-        rowToFind = date.day + rowOffset(userID) # 0-index based
+        rowToFind = date.day + rowOffset(self.userID) # 0-index based
 
         # Getting column is pretty hard since it needs month and activity, which is under the month. So have to get month first
         month = calendar.month_name[date.month] # Get the month name from the date
 
         #Get the month name row (1-index based), has None in the list
         monthRowList = []
-        if userID != "591939252061732900":
-            monthRowList = worksheet.row_values(activityOffset(userID)- 1) #Offset is 1-index based, so -1 to move back onto month cell, instead of activity cell
+        if self.userID != "591939252061732900":
+            monthRowList = worksheet.row_values(activityOffset(self.userID)- 1) #Offset is 1-index based, so -1 to move back onto month cell, instead of activity cell
         else:
             monthRowList = worksheet.row_values(3) # Alex only has 1 activity, so month is always on row 3 (1-index based)
 
@@ -184,7 +166,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
         
 
         #Get the column of the activity under the month found
-        if (username ==  'Alex'): # Only 1 activity algorithm
+        if (self.username ==  'Alex'): # Only 1 activity algorithm
             columnToFind = monthColumn 
 
             #Request section
@@ -219,13 +201,13 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
 
         else:  # 2+ activity algorithm
             columnToFind = []
-            activityRow = worksheet.row_values(activityOffset(userID)) #Get the 4th row (1-index based), does have None in the list
+            activityRow = worksheet.row_values(activityOffset(self.userID)) #Get the 4th row (1-index based), does have None in the list
             #Loops through the activityRow and stops until the first instance of activity is found, then set columnToFind as the index
-            for i in range(monthColumn, len(self.userActivities[username]) + monthColumn): #Index must and will be 0-index based
-                if activityRow[i] is not None and activityRow[i].lower() in [a.lower() for a in valid]: #Check if the activity matches
+            for i in range(monthColumn, len(self.userActivities[self.username]) + monthColumn): #Index must and will be 0-index based
+                if activityRow[i] is not None and activityRow[i].lower() in [a.lower() for a in chosen]: #Check if the activity matches
                     columnToFind.append(i)
             if columnToFind == []: #Checks in case activity is not found
-                raise ValueError (f"Activity '{valid}' not found under month '{month}'")
+                raise ValueError (f"Activity '{chosen}' not found under month '{month}'")
         
             #Request section
             compiledRequests = [] # To store all requests for batch update
@@ -263,13 +245,11 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
             worksheet.spreadsheet.batch_update({"requests": compiledRequests}) # Batch update all requests at once
             print("Batch update successful.")
 
-        # (ACTIVITY CHECKS) Only one of these checks will be triggered
-        if len(valid) >= 1 and len(invalid) == 0: # User only has valid activities
-            print(f"User checked in for {valid} activities")
-            await interaction.followup.send(f"{interaction.user.mention} has checked in for {valid} activities")
-        elif len(valid) >= 1 and len(invalid) >= 1:  # User has both valid and invalid activities
-            print(f"User checked in for {valid} activities, but also had invalid ones: {invalid}")
-            await interaction.followup.send(f"{interaction.user.mention} has checked in for {valid} activities, but also had invalid ones: {invalid}")
+        
+        # Tell user that they've checked into the sheet after all the processes
+        if chosen:
+            print(f"User checked in for {chosen} activities")
+            await interaction.followup.send(f"{interaction.user.mention} has checked in to the sheets for {chosen} activities")
 
         commandEndTime = time.perf_counter()
         print(f"Checkin executed in {commandEndTime - commandStartTime:.4f} seconds\n")
@@ -278,9 +258,9 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
         await interaction.response.send_message("Check-in menu timed out")
 
 class CheckinMenuView(discord.ui.View):
-    def __init__(self):
+    def __init__(self, userID: str):
         super().__init__(timeout=60) #Vanishes after 60s
-        self.add_item(CheckinMenu())
+        self.add_item(CheckinMenu(userID))
 
 
 
@@ -571,7 +551,7 @@ class sheetCommands(commands.Cog):
             return
         
         try:
-            await interaction.response.send_message("Please select your activity:", view=CheckinMenuView())
+            await interaction.response.send_message("Please select your activity to check-in:", view=CheckinMenuView(userID))
         except Exception as error:
             print(f"Error in checkinMenu: {error}\n")
             await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
@@ -595,13 +575,6 @@ class sheetCommands(commands.Cog):
             print(f"Error in checkoutMenu: {error}\n")
             await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
 
-    @app_commands.command(name="testloop", description="loops twice")
-    async def testLoop(self, interaction: discord.Interaction):
-        testList = ["123","456"]
-        for index, value in enumerate(testList):
-            await interaction.response.send_message(f"Printed index: {index} with value: {value}")
-
-  
     
 async def setup(bot: commands.Bot):
     GUILD_ID = discord.Object(id = 1391372922219659435) #This is my server's ID, and I'm only gonna use it for my server
