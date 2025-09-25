@@ -9,7 +9,7 @@ import asyncio
 from dotenv import load_dotenv
 
 load_dotenv(".env")
-TOKEN: str = os.getenv("TOKEN")
+TOKEN: str = os.getenv("discordToken")
 
 
 bot = commands.Bot(command_prefix = None,  intents = discord.Intents.all()) # command_prefix is not needed for app commands
