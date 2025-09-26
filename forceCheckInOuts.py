@@ -10,7 +10,7 @@ import calendar #To get month name
 import datetime #To get time
 import json # read, load, write into a JSON 
 import time # To get record time for commands ~ To see how long a command takes to execute
-
+import os
 
 def lockedInTime(elapsedTime: datetime.timedelta):
     hours = elapsedTime.seconds // 3600
@@ -25,7 +25,6 @@ def lockedInTime(elapsedTime: datetime.timedelta):
         return (f"{seconds} seconds")
     
 def loadJSON(file_path):
-    import os
     if not os.path.exists(file_path):
         with open(file_path, 'w') as file:
             file.write('{}') # create empty file
@@ -70,11 +69,13 @@ def rowOffset(userID): #Row offset is calculated by row in sheet in 0-index form
         return 3
 
 def sheetInitialization():
+    from dotenv import load_dotenv
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds = Credentials.from_service_account_file("credentials.json", scopes = scopes)
     client = gspread.authorize(creds)
 
-    sheetID = "1f77PidWRZtb2uaV5_QOLL6QBRhVlFx0tKiVodq9hwKE"
+    load_dotenv(".env")
+    sheetID = os.getenv("googleSheetID")
     sheet = client.open_by_key(sheetID)
     return sheet
 
@@ -86,11 +87,12 @@ with open('users.json') as file:
 with open('checkintimes.json', 'r') as file:
     timeCheckedIn = json.load(file) # Set timeCheckedIn to the data from the JSON file
 
-userID = "461526727521206282" # Replace with the actual user ID - TestUser
+
+userID = "591939252061732900" # Replace with the actual user ID - Alex
 username = ID_to_name[userID]
 
 userActivities = loadJSON('userActivities.json')
-chosen = ["Test1", "Test2"] # Example activity, should be replaced with actual user input
+chosen = ["Coding"] # Example activity, should be replaced with actual user input
 chosen.sort()
 
 
@@ -370,5 +372,5 @@ class Checkout: # Check-out
         print(f"Checkout executed in {commandEndTime - commandStartTime:.4f} seconds")
 
 #print(Checkin().checkin())
-#Checkout.checkout()
+print(Checkout.checkout())
 # Activate either check-in or check-out by uncommenting the above lines
