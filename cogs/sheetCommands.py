@@ -8,11 +8,12 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 #Other Imports
-import time
+import time 
 import datetime
 from datetime import timedelta
-import calendar
+import calendar #To get month name
 import json
+import os
 
 
 def lockedInTime(elapsedTime:datetime.timedelta):
@@ -28,16 +29,17 @@ def lockedInTime(elapsedTime:datetime.timedelta):
         return (f"{seconds} seconds")
 
 def sheetInitialization():
+    from dotenv import load_dotenv
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds = Credentials.from_service_account_file("credentials.json", scopes = scopes)
     client = gspread.authorize(creds)
 
-    sheetID = "1f77PidWRZtb2uaV5_QOLL6QBRhVlFx0tKiVodq9hwKE"
+    load_dotenv(".env")
+    sheetID = os.getenv("googleSheetID")
     sheet = client.open_by_key(sheetID)
     return sheet
 
 def loadJSON(file_path):
-    import os
     if not os.path.exists(file_path):
         with open(file_path, 'w') as file:
             file.write('{}') # create empty file with an empty dict
