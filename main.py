@@ -33,14 +33,18 @@ async def load():
     print("Syncing cogs...")
     for filename in os.listdir("./cogs"):
         if filename.endswith(".py"):
-            await bot.load_extension(f"cogs.{filename[:-3]}") # ":-3" removes 3 characters (.py) starting from behind the filename
-    
+            extensionName = f"cogs.{filename[:-3]}" # ":-3" removes 3 characters (.py) starting from behind the filename
+            try: 
+                await bot.load_extension(extensionName)
+            except Exception as error:
+                print(f"Failed to load {extensionName}: {error}")
 
+    
 async def main():
     async with bot:
         await load()
         await bot.start(TOKEN)
 
 
-
-asyncio.run(main())
+if __name__  == "__main__":
+    asyncio.run(main())
