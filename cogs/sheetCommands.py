@@ -109,6 +109,15 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
             max_values = len(activityOptions) #Hard limit
         ) 
     
+
+    async def interaction_check(self, interaction: discord.Interaction):
+        if (str(interaction.user.id) != self.userID): 
+            print(f"{interaction.user.name} tried to check-in other user's menu and that's not allowed")
+            await interaction.response.send_message(f"This menu is specifically for {self.username} only! Initiate the check-in command yourself", ephemeral= True)
+            return False
+        return True
+
+
     async def callback(self, interaction: discord.Interaction):
         commandStartTime = time.perf_counter() # To record how long the command takes to execute
 
@@ -265,7 +274,6 @@ class CheckinMenuView(discord.ui.View):
         self.add_item(CheckinMenu(userID))
 
 
-
 class CheckoutMenu(discord.ui.Select):
     def __init__(self, userID: str):
         #Declarations to be locally used in the class
@@ -293,6 +301,14 @@ class CheckoutMenu(discord.ui.Select):
             max_values= max(1, len(options))
          )       
 
+
+    async def interaction_check(self, interaction: discord.Interaction):
+        if (str(interaction.user.id) != self.userID):
+            print(f"{interaction.user.name} tried to check-in other user's menu and that's not allowed")
+            await interaction.response.send_message(f"This menu is specifically for {self.username} only! Initiate the check-out command yourself", ephemeral= True)
+            return False
+        return True
+        
     async def callback(self, interaction: discord.Interaction):
         commandStartTime = time.perf_counter() # To record how long the command takes to execute
 
