@@ -55,10 +55,10 @@ def saveTimeCheckins(checkinData):
     with open('checkintimes.json', 'w') as file:
         json.dump(checkinData, file, indent=4)
 
-# Used for finding activity row
+# Used for finding activity row, month row is always above activity row
 def activityOffset(userID): # Alex only has 1 activity registered, no need for an offset. Offset is 1-indexed based. TEMP solution
     if userID == "880614022939041864": #Sam
-        return 4
+        return 40
     elif userID == "582370335886802964": #Raf
         return 4
     elif userID == "461526727521206282": #TestUser
