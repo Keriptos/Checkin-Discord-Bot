@@ -68,6 +68,10 @@ def activityOffset(userID): # Alex only has 1 activity registered, no need for a
     elif userID == "689028638544494621": #Nicholas
         return 40
 
+"""
+Row offset is calculated by row in sheet in 0-index format - 1 (day) 
+Ex = Day 1 in at row 3 in sheet --> rowOffset = 1, 2 - 1 ~~~ (3rd row in 0-index format) - (day 1)
+"""
 # Used for finding the cell of date
 def rowOffset(userID): #Row offset is 0-index based. TEMP solution
      if userID == "591939252061732900": #Alex
@@ -77,7 +81,7 @@ def rowOffset(userID): #Row offset is 0-index based. TEMP solution
      elif userID == "181760450273214464": #Chris
          return 39
      elif userID == "689028638544494621": #Nicholas
-        return 39
+        return 75
      elif userID == "582370335886802964": #Raf
         return 3
      elif userID == "461526727521206282": #TestUser
@@ -160,10 +164,10 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
 
         #Get the month name row (1-index based), has None in the list
         monthRowList = []
-        if self.userID != "591939252061732900":
+        if self.userID not in ["591939252061732900", "650679555740401677"]: #Alex and Kendrick only have 1 activity registered, no need for an offset
             monthRowList = worksheet.row_values(activityOffset(self.userID)- 1) #Offset is 1-index based, so -1 to move back onto month cell, instead of activity cell
         else:
-            monthRowList = worksheet.row_values(3) # Alex only has 1 activity, so month is always on row 3 (1-index based)
+            monthRowList = worksheet.row_values(3) # Alex and Kendrick only has 1 activity, so month is always on row 3 (1-index based)
 
         monthColumn = None
         #Loops through the monthRowList and stops until the month is found, should return the index of it
@@ -177,7 +181,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
         
 
         #Get the column of the activity under the month found
-        if (self.username ==  'Alex'): # Only 1 activity algorithm
+        if (self.username ==  'Alex' or self.username == 'Kendrick'): # Only 1 activity algorithm
             columnToFind = monthColumn 
 
             #Request section
