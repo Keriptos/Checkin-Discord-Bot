@@ -55,14 +55,14 @@ def saveTimeCheckins(checkinData):
     with open('checkintimes.json', 'w') as file:
         json.dump(checkinData, file, indent=4)
 
-# Used for finding activity row, month row is always above activity row
+# Used for finding activity row, month row is always above activity row. For each year, add it by 36
 def activityOffset(userID): # Alex only has 1 activity registered, no need for an offset. Offset is 1-indexed based. TEMP solution
     if userID == "880614022939041864": #Sam
-        return 40
+        return 76
     elif userID == "582370335886802964": #Raf
-        return 4
+        return 40
     elif userID == "461526727521206282": #TestUser
-        return 4
+        return 40
     elif userID == "181760450273214464": #Chris
         return 40
     elif userID == "689028638544494621": #Nicholas
@@ -72,20 +72,20 @@ def activityOffset(userID): # Alex only has 1 activity registered, no need for a
 Row offset is calculated by row in sheet in 0-index format - 1 (day) 
 Ex = Day 1 in at row 3 in sheet --> rowOffset = 1, 2 - 1 ~~~ (3rd row in 0-index format) - (day 1)
 """
-# Used for finding the cell of date
+# Used for finding the cell of date. For each year, add it by 35 for 1-activity, add by 36 for 1+ activity
 def rowOffset(userID): #Row offset is 0-index based. TEMP solution
      if userID == "591939252061732900": #Alex
-         return 2
+         return 37 
      elif userID == "880614022939041864": #Sam
-         return 39
+         return 75
      elif userID == "181760450273214464": #Chris
-         return 39
+         return 75
      elif userID == "689028638544494621": #Nicholas
         return 75
      elif userID == "582370335886802964": #Raf
-        return 3
+        return 39
      elif userID == "461526727521206282": #TestUser
-        return 3
+        return 39
 
 class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 at once
     def __init__(self, userID: str):
@@ -167,7 +167,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
         if self.userID not in ["591939252061732900", "650679555740401677"]: #Alex and Kendrick only have 1 activity registered, no need for an offset
             monthRowList = worksheet.row_values(activityOffset(self.userID)- 1) #Offset is 1-index based, so -1 to move back onto month cell, instead of activity cell
         else:
-            monthRowList = worksheet.row_values(3) # Alex and Kendrick only has 1 activity, so month is always on row 3 (1-index based)
+            monthRowList = worksheet.row_values(38) # Alex and Kendrick only has 1 activity, so month is always on row 3 (1-index based)
 
         monthColumn = None
         #Loops through the monthRowList and stops until the month is found, should return the index of it
