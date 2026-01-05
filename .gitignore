@@ -1,6 +1,7 @@
 #DO NOT LEAK
 .env
 *.json
+*.bat
 
 #Unimportant files
 __pycache__/
