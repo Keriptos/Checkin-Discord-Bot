@@ -1,0 +1,9 @@
+{
+    "USER_ID_HERE": {
+        "username": "UserExample",
+        "activities": [
+            "Activity1"
+        ], 
+        "format": "Yearly" 
+    }
+}
