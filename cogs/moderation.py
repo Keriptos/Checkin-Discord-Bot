@@ -112,7 +112,7 @@ class Moderation(commands.Cog) :
             print(f"{interaction.user} tried to load a cog file without the required role\n")
             await interaction.response.send_message("You don't have the required role to use this command❗", ephemeral=True)
         else :
-            print(f"An error has occured when a user tried to use the load command: {error}\n")
+            print(f"An error has occured when a user tried to use the load: {error}\n")
             await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
     
     @app_commands.command(name = "reload", description= "(ADMIN ONLY) Reloads a cog file")
