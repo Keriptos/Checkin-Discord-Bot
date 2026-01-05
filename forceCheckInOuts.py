@@ -36,38 +36,43 @@ def loadJSON(file_path):
             file.write('{}')  # Create an empty JSON file if it doesn't exist or is invalid
     return {}
 
-def saveCheckins(checkinData):    
-    with open('checkintimes.json', 'w') as file:
-        json.dump(checkinData, file, indent=4)
+def saveJSON(data, file_path):
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent = 4)
 
-# Used for finding activity row
+
+# Used for finding activity row, month row is always above activity row. For each year, add it by 36
 def activityOffset(userID): # Alex only has 1 activity registered, no need for an offset. Offset is 1-indexed based. TEMP solution
     if userID == "880614022939041864": #Sam
-        return 4
+        return 76
     elif userID == "582370335886802964": #Raf
-        return 4
+        return 40
     elif userID == "461526727521206282": #TestUser
-        return 4
+        return 40
     elif userID == "181760450273214464": #Chris
         return 40
     elif userID == "689028638544494621": #Nicholas
         return 40
 
-# Used for finding the cell of date
-def rowOffset(userID): #Row offset is calculated by row in sheet in 0-index format - 1; Ex = row 3 in sheet = 1 offset (2 -1 = 1)
+"""
+Row offset is calculated by row in sheet in 0-index format - 1 (day) 
+Ex = Day 1 in at row 3 in sheet --> rowOffset = 1, 2 - 1 ~~~ (3rd row in 0-index format) - (day 1)
+"""
+# Used for finding the cell of date. For each year, add it by 35 for 1-activity, add by 36 for 1+ activity
+def rowOffset(userID): #Row offset is 0-index based. TEMP solution
      if userID == "591939252061732900": #Alex
-         return 2
-     elif userID == "582370335886802964": #Raf
-        return 3
+         return 37 
      elif userID == "880614022939041864": #Sam
-         return 39
+         return 75
      elif userID == "181760450273214464": #Chris
-         return 39
+         return 75
      elif userID == "689028638544494621": #Nicholas
+        return 75
+     elif userID == "582370335886802964": #Raf
         return 39
      elif userID == "461526727521206282": #TestUser
-        return 3
-
+        return 39
+     
 def sheetInitialization():
     from dotenv import load_dotenv
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -88,8 +93,8 @@ with open('checkintimes.json', 'r') as file:
     timeCheckedIn = json.load(file) # Set timeCheckedIn to the data from the JSON file
 
 
-userID = "591939252061732900" # Replace with the actual user ID - Alex
-username = ID_to_name[userID]
+userID = "582370335886802964" # Replace with the actual user ID - Raf
+username = ID_to_name[userID] 
 
 userActivities = loadJSON('userActivities.json')
 chosen = ["Coding"] # Example activity, should be replaced with actual user input
@@ -121,7 +126,7 @@ class Checkin:
 
         if len(self.valid) == 0:
             return (f"{username}'s chosen activities are all invalid: {self.invalid}")        
-        saveCheckins(timeCheckedIn)
+        saveJSON(timeCheckedIn, 'checkintimes.json')
         print(timeCheckedIn[username])
 
         # I removed an unnecessary loop and it cleared 0.5 - 1 sec so thats good, remember to change that in sheetCommands file
@@ -136,11 +141,11 @@ class Checkin:
 
         #Get the month name row (1-index based), has None in the list
         monthRowList = []
-        if userID != "591939252061732900": # Other than Alex
-            monthRowList = worksheet.row_values(activityOffset(userID)- 1) #Offset is 1-index based, so -1 to move back onto month cell, instead of activity cell
-        else: # Only for Alex
+        if userID == "591939252061732900": # Only for Alex
             monthRowList = worksheet.row_values(3) # Alex only has 1 activity, so month is always on row 3 (1-index based)
-
+        else: # Other than Alex
+            monthRowList = worksheet.row_values(activityOffset(userID)- 1) #Offset is 1-index based, so -1 to move back onto month cell, instead of activity cell
+        
         monthColumn = None
         #Loops through the monthRowList and stops until the month is found, should return the index of it
         for i, value in enumerate(monthRowList): #Index must and will be 0-index based
@@ -367,10 +372,10 @@ class Checkout: # Check-out
         else : 
             for activity in chosen:
                 timeCheckedInDICT[username].pop(activity)      
-        saveCheckins(timeCheckedInDICT)
+        saveJSON(timeCheckedInDICT, 'checkintimes.json')
         commandEndTime = time.perf_counter()
         print(f"Checkout executed in {commandEndTime - commandStartTime:.4f} seconds")
 
-#print(Checkin().checkin())
-print(Checkout.checkout())
+print(Checkin().checkin())
+# print(Checkout.checkout())
 # Activate either check-in or check-out by uncommenting the above lines

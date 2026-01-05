@@ -51,9 +51,9 @@ def loadJSON(file_path):
             file.write('{}')  # Create an empty JSON file if it doesn't exist or is invalid and write in an empty dict
     return {}
 
-def saveTimeCheckins(checkinData):    
-    with open('checkintimes.json', 'w') as file:
-        json.dump(checkinData, file, indent=4)
+def saveJSON(data, file_path):
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent = 4)
 
 # Used for finding activity row, month row is always above activity row. For each year, add it by 36
 def activityOffset(userID): # Alex only has 1 activity registered, no need for an offset. Offset is 1-indexed based. TEMP solution
@@ -144,7 +144,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
 
                 #Username and activity = keys, time as the value into dictionary
                 timeCheckedIn[self.username][activity] = datetime.datetime.now().isoformat() 
-        saveTimeCheckins(timeCheckedIn) # Saves once after processing all the check-in times (avoid multiple writes in loop)
+        saveJSON(timeCheckedIn, 'checkintimes.json') # Saves once after processing all the check-in times (avoid multiple writes in loop)
 
 
         #Update to sheets (Check-in)
@@ -455,7 +455,7 @@ class CheckoutMenu(discord.ui.Select):
                 timeCheckedInDICT[self.username].pop(activity)      
             print(f"{interaction.user.name} checked out from {chosen} activity")
 
-        saveTimeCheckins(timeCheckedInDICT) # Save the updated dictionary back to the JSON file
+        saveJSON(timeCheckedInDICT, 'checkintimes.json') # Save the updated dictionary back to the JSON file
         
         commandEndTime = time.perf_counter()
         print(f"Checkout executed in {commandEndTime - commandStartTime:.4f} seconds\n")
@@ -480,7 +480,7 @@ class sheetCommands(commands.Cog):
     
     @app_commands.command(name = "register", description = "Registers a new user onto the sheet")
     @app_commands.describe(name = "Your name to register with", activities = "Comma-separated list of a maximum five activities")
-    async def register(self, interaction: discord.Interaction, name: str, activities: str):
+    async def register(self, interaction: discord.Interaction, activities: str, name: str = None):
         print(f"{interaction.user.name} is trying to register")
         commandStartTime = time.perf_counter() # To record how long the command takes to execute
         userID = str(interaction.user.id)
@@ -494,10 +494,7 @@ class sheetCommands(commands.Cog):
             await interaction.response.send_message(f"{interaction.user.mention}, you are already registered as {name}!", ephemeral=True)
             return 
 
-        #Checks if name is valid
-        if name is None or name == "":
-            await interaction.response.send_message("Please provide a name to register with.", ephemeral=True)
-            return
+        
         #Checks if activity is valid
         if activities is None:
             await interaction.response.send_message("Please provide at least one activity to register with.", ephemeral=True)
@@ -508,6 +505,10 @@ class sheetCommands(commands.Cog):
             if len(activitiesList) > 5:
                 await interaction.response.send_message("Please provide a maximum of five activities to register with.", ephemeral=True)
                 return 
+            
+        #If user didn't input a username, it'll default into their discord username
+        if name is None or name == "":
+            name = interaction.user.global_name
             
         ID_to_name[userID] = name # Adds userID and name into the dictionary
         with open('users.json', 'w') as file:
