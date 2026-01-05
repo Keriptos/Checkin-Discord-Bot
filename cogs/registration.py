@@ -481,45 +481,48 @@ class Registration (commands.Cog):
 
         usersData = loadJSON('demo.json')
 
+        if STR_userID in usersData: 
+            print(f"{name} has already registered! Stopping registration process.\n")
+            username = usersData[STR_userID]['username']
+            await interaction.followup.send(f"{interaction.user.mention}, you are already registered as {username}!", ephemeral=True)
+            return 
+        
         #Checks if name is none
         if name is None or name == "":
-            name = interaction.user.global_name
+            name = interaction.user.name
             await interaction.response.send_message("Your username will be your discord username", ephemeral=True)
 
         #Checks if activity is valid
         if activities is None:
             await interaction.response.send_message("Please provide at least one activity to register with.", ephemeral=True)
             return
-        else:
-            # Get the activities from the command, seperate them and insert them into the list
-            activityList = [activity.strip() for activity in activities.split(",")]
-            activityList.sort() # Sort for consistency sake
+        else:            
+            activityList = [activity.strip() for activity in activities.split(",")] # Split the activities and make it into a list
             if len(activityList) > 5:
                 await interaction.response.send_message("Please provide a maximum of five activities to register with.", ephemeral=True)
                 return 
-         
-        # Check if userID is already registered. If not, save user's details locally
-        if STR_userID in usersData: 
-            print(f"{name} has already registered! Stopping registration process.")
-            await interaction.response.send_message(f"{interaction.user.mention}, you are already registered as {name}!", ephemeral=True)
-            return 
-        else : 
-            usersData[STR_userID] = {} # Make a new dict for the user
-            usersData[STR_userID]['username'] = name # Add username in the user's dict
-            usersData[STR_userID]['activities'] = activityList # Add activities in the user's dict
-            usersData[STR_userID]['format'] = activityFormat(activityList) # Add format in the user's dict
+            activityList.sort() # Sort for consistency sake
 
-        # Save the data to local
+            # Write the data to local file
+            usersData[STR_userID] = {} # Make a new dict for the user
+            usersData[STR_userID]['username'] = name 
+            usersData[STR_userID]['activities'] = activityList 
+            usersData[STR_userID]['format'] = activityFormat(activityList) 
+        
+        # Save the data to local file
         processStartTime = time.perf_counter()
         saveJSON(usersData, 'demo.json')
         processEndTime = time.perf_counter()
-        print(f"Added {name} into the local logs in {processEndTime - processStartTime:.4f} seconds")
+        print(f"Registered as {name} into the local logs in {processEndTime - processStartTime:.4f} seconds")
 
 
         await interaction.response.defer()
         # Try to write to Google Sheet (Slow Process)
         try: 
+            processStartTime = time.perf_counter()
             sheet = sheetInitialization()   
+            processEndTime = time.perf_counter()
+            print(f"Connected to Google sheets in {processEndTime - processStartTime:.4f} seconds")
 
             # Write the user onto the Participants worksheet
             processStartTime = time.perf_counter()
