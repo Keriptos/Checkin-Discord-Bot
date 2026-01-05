@@ -90,6 +90,31 @@ class Moderation(commands.Cog) :
         ][:25] # Discord only allows max of 25 items
 
 
+    @app_commands.command(name = "load", description= "(ADMIN ONLY) Loads a cog file")
+    @app_commands.autocomplete(cogfile = cog_autocomplete) 
+    @app_commands.checks.has_role("Botministrator")
+    async def load(self, interaction: discord.Interaction, cogfile: str):
+        commandStartTime = time.perf_counter()
+        print(f"{interaction.user.name} is trying to load a cog file")
+
+        try:
+            await self.bot.load_extension(f"{cogfile}")
+            await interaction.response.send_message(f"loaded {cogfile} succesfully!", ephemeral=True)
+        except Exception as error:
+             await interaction.response.send_message(f"Failed to load {cogfile}, {error}!", ephemeral=True)
+
+        commandEndTime = time.perf_counter()
+        print(f"Load cogFile command executed in {commandEndTime - commandStartTime:0.4f} seconds\n")
+
+    @load.error
+    async def loadError(self, interaction: discord.Interaction, error):
+        if isinstance(error, app_commands.errors.MissingRole) :
+            print(f"{interaction.user} tried to load a cog file without the required role\n")
+            await interaction.response.send_message("You don't have the required role to use this command❗", ephemeral=True)
+        else :
+            print(f"An error has occured when a user tried to use the load command: {error}\n")
+            await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
+    
     @app_commands.command(name = "reload", description= "(ADMIN ONLY) Reloads a cog file")
     @app_commands.autocomplete(cogfile = cog_autocomplete) 
     @app_commands.checks.has_role("Botministrator")
@@ -112,7 +137,7 @@ class Moderation(commands.Cog) :
             print(f"{interaction.user} tried to reload a cog file without the required role\n")
             await interaction.response.send_message("You don't have the required role to use this command❗", ephemeral=True)
         else :
-            print(f"An error has occured when a user tried to sync commands: {error}\n")
+            print(f"An error has occured when a user tried to use the reload command: {error}\n")
             await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
 
 
