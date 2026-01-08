@@ -472,7 +472,7 @@ class Registration (commands.Cog):
     async def on_ready(self):
         print(f"{__name__} is ready!")
 
-    @app_commands.command(name = "demo_register", description = "Registers a new user onto the sheet")
+    @app_commands.command(name = "register", description = "Registers a new user onto the sheet")
     @app_commands.describe(name = "A username to register with. Defaulted to your discord name", activities = "Comma-separated list of a maximum five activities")
     async def register(self, interaction: discord.Interaction, activities: str, name: str = None):
         print(f"{interaction.user.name} is trying to register")
@@ -480,11 +480,11 @@ class Registration (commands.Cog):
         STR_userID = str(interaction.user.id)
 
         usersData = loadJSON('demo.json')
-
+        
         if STR_userID in usersData: 
-            print(f"{name} has already registered! Stopping registration process.\n")
+            print(f"{interaction.user.name} has already registered! Stopping registration process.\n")
             username = usersData[STR_userID]['username']
-            await interaction.followup.send(f"{interaction.user.mention}, you are already registered as {username}!", ephemeral=True)
+            await interaction.response.send_message(f"{interaction.user.mention}, you are already registered as {username}!", ephemeral=True)
             return 
         
         #Checks if name is none
@@ -550,7 +550,7 @@ class Registration (commands.Cog):
         await interaction.followup.send(f"{interaction.user.mention} successfully registered as {name} with activities: {", ".join(activityList)}.")
         print(f"{interaction.user.name} successfully registered as {name} with activities: {', '.join(activityList)}.")
         commandEndTime = time.perf_counter()
-        print(f"Registration command finish executed in {commandEndTime - commandStartTime:.4f} seconds\n")
+        print(f"Registration executed in {commandEndTime - commandStartTime:.4f} seconds\n")
 
 async def setup(bot: commands.Bot):
     GUILD_ID = discord.Object(id = 1391372922219659435) #This is my server's ID, and I'm only gonna use it for my server
