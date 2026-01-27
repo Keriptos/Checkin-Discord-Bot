@@ -57,6 +57,7 @@ def sheetInitialization():
         load_dotenv(".env")
         sheetID = os.getenv("googleSheetID")
         sheet = client.open_by_key(sheetID)
+        print("Initialized Google Sheet client")
     return sheet
 
 # worksheets = {}
@@ -175,11 +176,12 @@ def getMonthCell(userID:str, date: datetime.datetime, yearCell: dict, yearDivCel
     return monthCell
 
 class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 at once
-    def __init__(self, userID: str):
+    def __init__(self, userID: str, sheet: Spreadsheet):
         self.userID = userID
         self.usersData: dict = loadJSON('demo.json')
         self.username: str = self.usersData[userID]['username']
         self.userFormat: str = self.usersData[userID]['format']
+        self.sheet: Spreadsheet = sheet
 
         # Basically make a list of activities from user's registered activitiies
         self.userActivities = self.usersData[userID]['activities']
@@ -238,9 +240,8 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
 
 
         # Update to sheets (Check-in)
-        print("Checking in to sheets")
-        sheet = sheetInitialization() 
-        worksheet = sheet.worksheet(self.username) # Get the worksheet for the userID
+        print("Checking in to sheets")        
+        worksheet = self.sheet.worksheet(self.username) # Get the worksheet for the userID
         worksheetID = worksheet.id
 
         # Get year, timeColumn is a column gotten by Sheet API to gather all values from the year and yearDivison column (D column) 
@@ -362,19 +363,20 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
         await interaction.response.send_message("Check-in menu timed out")
 
 class CheckinMenuView(discord.ui.View):
-    def __init__(self, userID: str):
+    def __init__(self, userID: str, sheet: Spreadsheet):
         super().__init__(timeout=60) #Vanishes after 60s
-        self.add_item(CheckinMenu(userID))
+        self.add_item(CheckinMenu(userID, sheet))
 
 
 class CheckoutMenu(discord.ui.Select):
-    def __init__(self, userID: str):
+    def __init__(self, userID: str, sheet: Spreadsheet):
         #Declarations to be locally used in the class
         self.userID = userID
         self.usersData: dict = loadJSON('demo.json')
         self.username: str = self.usersData[userID]['username']
         self.userFormat: str = self.usersData[userID]['format']
         self.userActivities: list = self.usersData[userID]['activities']
+        self.sheet: Spreadsheet = sheet
 
 
         # Basically make a list out of the activity keys from checkintimes.json UNDER their usernames
@@ -415,9 +417,8 @@ class CheckoutMenu(discord.ui.Select):
         await interaction.response.defer()
 
         # Syncing to Sheets (Check-out)
-        print("Checking out from sheets")
-        sheet = sheetInitialization() # Initialize the sheet
-        worksheet = sheet.worksheet(self.username) # Get the worksheet for the userID
+        print("Checking out from sheets")        
+        worksheet = self.sheet.worksheet(self.username) # Get the worksheet for the userID
         worksheetID = worksheet.id # Get the worksheetID for pasteLabels later on
         
         timeCheckedOut = datetime.datetime.now()
@@ -555,24 +556,24 @@ class CheckoutMenu(discord.ui.Select):
         await interaction.response.send_message("Check-out menu timed out")
 
 class CheckoutMenuView(discord.ui.View):
-    def __init__(self, userID: str):
+    def __init__(self, userID: str, sheet: Spreadsheet):
         super().__init__(timeout=60)
-        self.add_item(CheckoutMenu(userID))
+        self.add_item(CheckoutMenu(userID, sheet))
 
 class CheckInOuts(commands.Cog):
     commandStartTime = time.perf_counter() # To record how long loading the cog takes
     def __init__(self, bot):
         self.bot = bot 
+        self.sheet = sheetInitialization()
 
     @commands.Cog.listener()
     async def on_ready(self):
         print(f"{__name__} is online!")
     
-    
     @app_commands.command(name = "demo_checkinmenu", description = "Checks you in to the google sheet")
     async def demo_checkinMenu(self, interaction: discord.Interaction):
-        userID = str(interaction.user.id)
-        usersData = loadJSON('demo.json')        
+        userID = str(interaction.user.id)        
+        usersData = loadJSON('demo.json')
         
 
         print(f"{interaction.user.name} is trying to check in")
@@ -582,7 +583,7 @@ class CheckInOuts(commands.Cog):
             return
         
         try:
-            await interaction.response.send_message("Please select your activity to check-in:", view=CheckinMenuView(userID))
+            await interaction.response.send_message("Please select your activity to check-in:", view=CheckinMenuView(userID, self.sheet))
         except Exception as error:
             print(f"Error in checkinMenu: {error}\n")
             await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
@@ -601,7 +602,7 @@ class CheckInOuts(commands.Cog):
             return
         
         try:
-            await interaction.response.send_message("Please select your activity to check-out:", view=CheckoutMenuView(userID))
+            await interaction.response.send_message("Please select your activity to check-out:", view=CheckoutMenuView(userID, self.sheet))
         except Exception as error:
             print(f"Error in checkoutMenu: {error}\n")
             await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
