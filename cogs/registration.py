@@ -11,21 +11,24 @@ from google.oauth2.service_account import Credentials
 #Other Imports
 import time
 import datetime
-from datetime import timedelta
-import calendar
+import os
 import json
 
+sheet = None 
 def sheetInitialization():
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_file("credentials.json", scopes = scopes)
-    client = gspread.authorize(creds)
+    from dotenv import load_dotenv    
+    global sheet
+    if sheet is None: 
+        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+        creds = Credentials.from_service_account_file("credentials.json", scopes = scopes)
+        client = gspread.authorize(creds)
 
-    sheetID = "1f77PidWRZtb2uaV5_QOLL6QBRhVlFx0tKiVodq9hwKE"
-    sheet = client.open_by_key(sheetID)
+        load_dotenv(".env")
+        sheetID = os.getenv("googleSheetID")
+        sheet = client.open_by_key(sheetID)
     return sheet
 
-def loadJSON(file_path):
-    import os
+def loadJSON(file_path):    
     if not os.path.exists(file_path):
         with open(file_path, 'w') as file:
             file.write('{}') # create empty file with an empty dict
