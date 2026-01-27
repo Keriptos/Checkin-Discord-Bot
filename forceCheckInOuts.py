@@ -1,381 +1,361 @@
-#DO NOT PUT THIS IN COGS FOLDER, THIS IS MADE TO RUN LOCALLY
-
 #Google Sheets Imports
 import gspread 
+from gspread import Worksheet, Spreadsheet
 from google.oauth2.service_account import Credentials
 from gspread_formatting import *
 
 #Other Imports
-import calendar #To get month name
-import datetime #To get time
-import json # read, load, write into a JSON 
-import time # To get record time for commands ~ To see how long a command takes to execute
+import json
 import os
+import datetime
+from datetime import timedelta
+from enum import Enum # For defining labels
+import time # To track how long commands take to execute
 
-def lockedInTime(elapsedTime: datetime.timedelta):
+sheet = None
+
+def lockedInTime(elapsedTime: timedelta):
     hours = elapsedTime.seconds // 3600
     minutes = (elapsedTime.seconds % 3600) // 60     
     seconds = elapsedTime.seconds % 60
 
-    if hours != 0 and minutes != 0 and seconds != 0:
-        return(f"{hours} hours {minutes} minutes {seconds} seconds")
-    elif hours == 0 and minutes != 0 and seconds != 0:
+    if hours != 0 and minutes != 0 and seconds != 0 : 
+        return(f"{hours} hours {minutes} minutes {seconds} seconds") 
+    elif hours == 0 and minutes != 0 and seconds != 0 :
         return (f"{minutes} minutes {seconds} seconds")
-    elif hours == 0 and minutes == 0 and seconds != 0:
+    elif hours == 0 and minutes == 0 and seconds != 0 :
         return (f"{seconds} seconds")
-    
+
+
 def loadJSON(file_path):
     if not os.path.exists(file_path):
         with open(file_path, 'w') as file:
-            file.write('{}') # create empty file
+            json.dump({}, file) # create an empty file
     try:
         with open(file_path) as file: 
             return json.load(file)
-    except json.JSONDecodeError:
+    except json.decoder.JSONDecodeError:
         with open(file_path, 'w') as file:
-            file.write('{}')  # Create an empty JSON file if it doesn't exist or is invalid
+            json.dump({}, file)  # Create an empty JSON file if it doesn't exist or is invalid
     return {}
 
 def saveJSON(data, file_path):
     with open(file_path, 'w') as file:
         json.dump(data, file, indent = 4)
 
-
-# Used for finding activity row, month row is always above activity row. For each year, add it by 36
-def activityOffset(userID): # Alex only has 1 activity registered, no need for an offset. Offset is 1-indexed based. TEMP solution
-    if userID == "880614022939041864": #Sam
-        return 76
-    elif userID == "582370335886802964": #Raf
-        return 40
-    elif userID == "461526727521206282": #TestUser
-        return 40
-    elif userID == "181760450273214464": #Chris
-        return 40
-    elif userID == "689028638544494621": #Nicholas
-        return 40
-
-"""
-Row offset is calculated by row in sheet in 0-index format - 1 (day) 
-Ex = Day 1 in at row 3 in sheet --> rowOffset = 1, 2 - 1 ~~~ (3rd row in 0-index format) - (day 1)
-"""
-# Used for finding the cell of date. For each year, add it by 35 for 1-activity, add by 36 for 1+ activity
-def rowOffset(userID): #Row offset is 0-index based. TEMP solution
-     if userID == "591939252061732900": #Alex
-         return 37 
-     elif userID == "880614022939041864": #Sam
-         return 75
-     elif userID == "181760450273214464": #Chris
-         return 75
-     elif userID == "689028638544494621": #Nicholas
-        return 75
-     elif userID == "582370335886802964": #Raf
-        return 39
-     elif userID == "461526727521206282": #TestUser
-        return 39
-     
 def sheetInitialization():
-    from dotenv import load_dotenv
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_file("credentials.json", scopes = scopes)
-    client = gspread.authorize(creds)
+    global sheet
+    if sheet is None:
+        from dotenv import load_dotenv
+        load_dotenv(".env")
+        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+        creds = Credentials.from_service_account_file("credentials.json", scopes = scopes)
+        client = gspread.authorize(creds)
 
-    load_dotenv(".env")
-    sheetID = os.getenv("googleSheetID")
-    sheet = client.open_by_key(sheetID)
+        googlesheetID = os.getenv("googleSheetID")
+        sheet = client.open_by_key(googlesheetID)
     return sheet
 
 
-with open('users.json') as file:
-    ID_to_name = json.load(file)
+# Save check-in timestamp locally
+def saveCheckins(chosen: list):
+    start = time.perf_counter()
+    timeCheckedIn = loadJSON('checkintimes.json')
+    for activity in chosen:
+        # if activity in self.userActivities.get(self.ID_to_name[self.userID], []):
+        if username not in timeCheckedIn:
+            timeCheckedIn[username] = {}
+
+        #Username and activity = keys, time as the value into dictionary
+        timeCheckedIn[username][activity] = datetime.datetime.now().isoformat()
+    saveJSON(timeCheckedIn, 'checkintimes.json') 
+    end = time.perf_counter()
+    print(f"Succesfully saved timestamp locally in {end - start:.8f} seconds\n")
+    
+TEMP_userID = str(880614022939041864)
+usersData = loadJSON('demo.json')
+userFormat = usersData[TEMP_userID]['format']
+username = usersData[TEMP_userID]['username']
+userActivities = usersData[TEMP_userID]['activities']
+chosen = ['Illustrate']
+
+for activity in chosen:
+    if activity not in userActivities:
+        raise LookupError (f"Your chosen list is not the same as your registered activity!")
+
+"""
+Check-In Process 
+----------------------------------------------------------
+(1 Activity)
+Year --> Month --> Date
+1. Get timestamp right now (YY:MM:DD, the format doesn't matter)
+2. Get yearCell (0 by default). If not found, jump by (put number here) cells. Repeat until found
+3. When yearCell is found, get the monthRowList (it's 2 rows below yearCell). monthRowLocation = yearCell + 2
+4. Get rowToFind (the first ever day is a row after monthRowList, so rowToFind = monthRowLocation + current day)
+5. Get month name from the monthRowList, that value (aka the index) will be monthColumn.
+6. If monthColumn is found, set colToFind as monthColumn
+---------------------------------------------------------- 
+(2+ Activities)
+Year --> Year Division (Semester or Quarter) --> Month --> Activity --> Date
+1. Get timestamp right now (YY:MM:DD, the format doesn't matter)
+2. Get yearCell. If not found, jump by (put number here) cells. Repeat until found
+3. When yearCell is found, get the monthRowList (it's 2 rows below yearCell). monthRowLocation = yearCell + 2
+
+(Search rowToFind)
+4. Get activityRowList (it's a row after monthRowList). activityRowLocation = monthRowLocation + 1
+5. Get rowToFind (the first ever day is a row after activityRow, so rowToFind = activityRowLocation + date.day)
+
+{Search colToFind (list), since checked in for mulitple activities }
+6. Get month name from the monthRow, that value (aka the index) will be monthColumn.
+7. If monthColumn is found, loop through the merged cells (the length of the merge cells is the index of month + activites count from user)
+8. If the activity header matches with the activity the user has checked in for, append colToFind as the iterator from the loop
+"""
 
 
-with open('checkintimes.json', 'r') as file:
-    timeCheckedIn = json.load(file) # Set timeCheckedIn to the data from the JSON file
+"""
+OPTIMIZATIONS?
+
+Put month on enums, because monthColumn are basically constants. Just count the index and offset them by len of activities
+Save the check-in cell, so that check-out process doesn't need to fetch anything
 
 
-userID = "582370335886802964" # Replace with the actual user ID - Raf
-username = ID_to_name[userID] 
+"""
 
-userActivities = loadJSON('userActivities.json')
-chosen = ["Coding"] # Example activity, should be replaced with actual user input
-chosen.sort()
+def setYearDivisionFormat(userFormat: str, date: datetime.datetime):
+    # Semester 1 --> 1 2 3 4 5 6 | Semester 2 --> 7 8 9 10 11 12
+    if "Semesterly" in userFormat:
+        if date.month <= 6: 
+            yearDivToFind = "Semester 1"
+        else:
+            yearDivToFind = "Semester 2"
+
+    # Q1 --> 1 2 3 | Q2 --> 4 5 6 | Q3 --> 7 8 9 | Q4 --> 10 11 12        
+    elif "Quarterly" in userFormat:
+        if date.month <= 3:
+            yearDivToFind = "Q1"
+        elif date.month <= 6:
+            yearDivToFind = "Q2"
+        elif date.month <= 9:
+            yearDivToFind = "Q3"
+        else:
+            yearDivToFind = "Q4"    
+    return yearDivToFind
+
+def getYearCell(userFormat: str, worksheet: Worksheet, date: datetime.datetime):
+    processStartTime = time.perf_counter()
+    if userFormat == "Yearly": 
+        yearCell = { # By default, it's D3 --> (1-indexed)
+            "row": 3,
+            "col": 4 
+        }
+    else:
+        yearCell = { # By default, it's D1 --> (1-indexed)
+            "row": 1,
+            "col": 4 
+        }
+    timeColumn = worksheet.col_values(4) # Year location is fixed, always at D column
+    yearRow = yearCell["row"]
+    
+    found = False   
+    while (yearRow <= len(timeColumn)):        
+        if (timeColumn[yearRow - 1] == str(date.year)): # the index was decremented by 1 so it's 0-indexed
+            yearCell['row'] = yearRow
+            found = True
+            break
+
+        # Skip algorithm
+        if (userFormat == "Yearly"):
+            yearRow += 35
+        else :
+            yearRow += 36
+
+    if not found:
+        raise ValueError(f"Year {date.year} not found")
+    
+    processEndTime = time.perf_counter()
+    print(f"Found yearCell in {processEndTime - processStartTime:.4f} seconds")
+
+    return yearCell, timeColumn
 
 
-class Checkin:
-    def __init__(self):
-        self.valid = []
-        self.invalid = []
+class YearDivisionDTO():
+    def __init__ (self, yearDivToFind: str, yearCell: dict, timeColumn: list):
+        self.yearDivToFind = yearDivToFind
+        self.yearCell = yearCell
+        self.timeColumn = timeColumn
 
-    def checkin(self):
-        commandStartTime = time.perf_counter() # To record how long the command takes to execute
+# Search for year division like Semester 1, Q2, etc
+def getYearDivision(DTO: YearDivisionDTO):    
+    start = time.perf_counter()    
 
-        sheet = sheetInitialization() # Initialize the sheet
-        worksheet = sheet.worksheet(username) # Get the worksheet for the userID
-        worksheetID = worksheet.id # Get the worksheetID for pasteLabels later on
+    # Default values are 1-indexed)
+    yearDivisionCell = { 
+        "row": DTO.yearCell["row"] + 2,
+        "col": DTO.yearCell["col"]
+    }
 
+    # Search the yearDivRow
+    found = False   
+    yearDivRow = yearDivisionCell["row"] 
+    while (yearDivRow <= len(DTO.timeColumn)):  
+        if (DTO.timeColumn[yearDivRow - 1] == DTO.yearDivToFind): # the index was decremented by 1 so it's 0-indexed
+            yearDivisionCell['row'] = yearDivRow
+            found = True
+            break
 
-        for activity in chosen:
-            if activity in userActivities.get(username, []): #If valid
-                self.valid.append(activity)
-                if username not in timeCheckedIn:
-                    timeCheckedIn[username] = {} # Creates a new dict for the user if they don't exist
+        # Skip algorithm
+        yearDivRow += 36
+    
+    end = time.perf_counter()
+    print(f"Found yearDivisionCell '{DTO.yearDivToFind}' in {end - start:.8f} seconds")
+    if not found:
+        raise ValueError(f"{DTO.yearDivToFind} not found")
 
-                timeCheckedIn[username][activity] = datetime.datetime.now().isoformat() #userName and activity = keys, time as the value into dictionary
-            else:
-                self.invalid.append(activity)
+    return yearDivisionCell
 
-        if len(self.valid) == 0:
-            return (f"{username}'s chosen activities are all invalid: {self.invalid}")        
-        saveJSON(timeCheckedIn, 'checkintimes.json')
-        print(timeCheckedIn[username])
+def getMonthCell(userFormat: str, date: datetime.datetime, yearCell: dict, yearDivCell: dict):
+    monthStart = time.perf_counter()
 
-        # I removed an unnecessary loop and it cleared 0.5 - 1 sec so thats good, remember to change that in sheetCommands file
-        date = datetime.datetime.now() # Get date from right now, it's a check-in so date is whenever the user initiates the command
+    # All values are 1 - indexed
+    if userFormat == "Yearly":            
+        monthCell = {
+        "row": yearCell["row"],
+        "col": 6 + (date.month - 1) 
+    }
+    else: 
+        monthCell = {
+        "row": yearDivCell["row"],
+        "col": 6 + (len(userActivities) * (date.month - 1)) 
+    }
+    monthEnd = time.perf_counter()
+    print(f"Completed month search in {monthEnd - monthStart:.8f} seconds")
+    return monthCell
 
-        #Only yearly table format(me) have different row and column algorithms, make a special case for them
-        #Process to find row and column to update 
-        rowToFind = date.day + rowOffset(userID) # 0-index based
+# Update to sheets (Check-in)
+def checkInOut_Process(mode: str):
+    commandStartTime = time.perf_counter()
+    labels = ["ON PROGRESS", "DONE"]
+    if mode == "Checkin": 
+        selector = 0
+        saveCheckins(chosen)
+    elif mode == "Checkout":
+        selector = 1
+    else :
+        raise ValueError(f"Invalid mode '{mode}'. Must be either Checkin or Checkout")
+    
+    date = datetime.datetime.now() # Get the value from userID, which is the time checked in for that specific user
+    
 
-        # Getting column is pretty hard since it needs month and activity, which is under the month. So have to get month first
-        month = calendar.month_name[date.month] # Get the month name from the date
+    print("Going to sheets")
+    sheet = sheetInitialization()
+    worksheet = sheet.worksheet(username) # Get the worksheet for the userID
+    worksheetID = worksheet.id
 
-        #Get the month name row (1-index based), has None in the list
-        monthRowList = []
-        if userID == "591939252061732900": # Only for Alex
-            monthRowList = worksheet.row_values(3) # Alex only has 1 activity, so month is always on row 3 (1-index based)
-        else: # Other than Alex
-            monthRowList = worksheet.row_values(activityOffset(userID)- 1) #Offset is 1-index based, so -1 to move back onto month cell, instead of activity cell
+    
+    # Get year, timeColumn is a column gotten by Sheet API to gather all values from the year and yearDivison column (D column) 
+    yearCell, timeColumn = getYearCell(userFormat, worksheet, date) 
         
-        monthColumn = None
-        #Loops through the monthRowList and stops until the month is found, should return the index of it
-        for i, value in enumerate(monthRowList): #Index must and will be 0-index based
-            if value is not None and value.strip().lower() == month.lower():
-                monthColumn :int = i
-                break
-        #Checks in case month is not found
-        if monthColumn is None:
-            raise ValueError (f"Month '{month}' not found") 
+    # Get year divison (semester or quarter) - Only for non-yearly formats
+    yearDivCell = None
+    if userFormat != "Yearly":
+        yearDivToFind = setYearDivisionFormat(userFormat, date)
+        DTO = YearDivisionDTO(yearDivToFind, yearCell, timeColumn)
+        yearDivCell = getYearDivision(DTO)
+    
+    
+    monthCell = getMonthCell(userFormat, date, yearCell, yearDivCell)
 
+    if userFormat == "Yearly":  # Only 1 activity algorithm
+        # Decrement by 1 so that it's 0-indexed
+        rowToFind = (monthCell["row"] - 1) + date.day  # The first day is a row after monthRow. 
+        columnToFind = monthCell["col"] - 1 # Since there's only 1 activity, columnToFind is just monthColumn
+
+        #Request section
         compiledRequests = [] # To store all requests for batch update for later
-        #Get the column of the activity under the month found
-        if (username ==  'Alex'): # Only 1 activity algorithm
-            columnToFind = monthColumn 
-            
-            compiledRequests = [] # To store all requests for batch update for later
-            #Request section
-            pre_pasteLabels = { #ON PROGRESS to update cell | Check-in
+        CheckInOutsReq = { #Write ON PROGRESS to update cell (we used conditional formatting when making the table) | Check-in
+            "requests": [
+                {
+                    "updateCells": {
+                        "rows": [ 
+                            {"values": [{"userEnteredValue": {"stringValue": f"{labels[selector]}"}}]}
+                        ],
+                        "fields": "userEnteredValue",
+                        "range": {
+                            "sheetId": worksheetID,
+                            "startRowIndex": rowToFind, # First row
+                            "endRowIndex": rowToFind + 1,
+                            "startColumnIndex": columnToFind, # Column D
+                            "endColumnIndex": columnToFind + 1,
+                        }
+                    }
+                }
+            ]
+        }
+        compiledRequests.extend(CheckInOutsReq["requests"]) # Add the requests to the compiled list
+
+    else: # 2+ algorithm                
+        rowToFind = monthCell["row"] + date.day # The first day is 2 rows after monthRow. (0-indexed)
+
+        # Map the activity and offset it based on monthCell
+        activityIndex = {}
+        for index, activity in enumerate(userActivities):
+            activityIndex[activity] = index
+
+        columnToFind = []
+        for activity in chosen:
+            if activity in activityIndex:
+                baseIndex = activityIndex[activity]                
+                columnToFind.append(baseIndex + monthCell["col"] - 1)
+            else:
+                raise ValueError(f"Activity '{activity}' not found")
+        
+        # Request section
+        
+        compiledRequests = [] # To store all requests for batch update for later
+        for col in columnToFind:
+            CheckInOutsReq = { #Write ON PROGRESS to update cell (we used conditional formatting when making the table) | Check-in
                 "requests": [
                     {
-                        "copyPaste": {
-                            "source": {
-                                # 0-index based
+                        "updateCells": {
+                            "rows": [ 
+                                {"values": [{"userEnteredValue": {"stringValue": f"{labels[selector]}"}}]}
+                            ],
+                            "fields": "userEnteredValue",
+                            "range": {
                                 "sheetId": worksheetID,
-                                "startRowIndex": 3,  # Copies "ON PROGRESS" Cell
-                                "startColumnIndex": 0,
-                                "endRowIndex": 4,
-                                "endColumnIndex": 1
-                            },
-                            "destination": {
-                                # 0-index based
-                                "sheetId": worksheetID,
-                                "startRowIndex": rowToFind,
-                                "startColumnIndex": columnToFind,
+                                "startRowIndex": rowToFind, # First row
                                 "endRowIndex": rowToFind + 1,
-                                "endColumnIndex": columnToFind + 1
-                            },
-                            "pasteType": "PASTE_NORMAL",
-                            "pasteOrientation": "NORMAL"
+                                "startColumnIndex": col, # Column D
+                                "endColumnIndex": col + 1,
+                            }
                         }
                     }
                 ]
             }
-            compiledRequests.extend(pre_pasteLabels["requests"]) # Add the requests to the compiled list
-
-        else:  # 2+ activity algorithm
-            columnToFind = []
-            activityRow = worksheet.row_values(activityOffset(userID)) #Get the 4th row (1-index based), does have None in the list
-            #Loops through the activityRow and stops until the first instance of activity is found, then set columnToFind as the index
-            for i in range(monthColumn, len(userActivities[username]) + monthColumn): #Index must and will be 0-index based
-                if activityRow[i] is not None and activityRow[i].lower() in [a.lower() for a in self.valid]: #Check if the activity matches
-                    columnToFind.append(i)
-            if columnToFind == []: #Checks in case activity is not found
-                raise ValueError (f"Activity '{self.valid}' not found under month '{month}'")
+            compiledRequests.extend(CheckInOutsReq["requests"]) # Add the requests to the compiled list
         
-            #Request section
-            compiledRequests = [] # To store all requests for batch update
-            for i in columnToFind:
-                pre_pasteLabels = { #ON PROGRESS to update cell | Check-in
-                    "requests": [
-                        {
-                            "copyPaste": {
-                                "source": {
-                                    # 0-index based
-                                    "sheetId": worksheetID,
-                                    "startRowIndex": 3,  # Copies "ON PROGRESS" Cell
-                                    "startColumnIndex": 0,
-                                    "endRowIndex": 4,
-                                    "endColumnIndex": 1
-                                },
-                                "destination": {
-                                    # 0-index based
-                                    "sheetId": worksheetID,
-                                    "startRowIndex": rowToFind,
-                                    "startColumnIndex": i,
-                                    "endRowIndex": rowToFind + 1,
-                                    "endColumnIndex": i + 1
-                                },
-                                "pasteType": "PASTE_NORMAL",
-                                "pasteOrientation": "NORMAL"
-                            }
-                        }
-                    ]
-                }
-                compiledRequests.extend(pre_pasteLabels["requests"]) # Add the requests to the compiled list
-            #print(rowToFind, columnToFind)
-        #print(month, monthColumn, compiledRequests)
+    
+    if compiledRequests != []:
+        processStartTime = time.perf_counter()
+        worksheet.spreadsheet.batch_update({"requests": compiledRequests}) # Batch update all requests at once
+        print("Batch update successful.")
+        processEndTime = time.perf_counter()
+        if mode == "Checkin":
+            print(f"Sucessfully checked in user in {processEndTime - processStartTime:.4f} seconds")
+        elif mode == "Checkout":
+            print(f"Sucessfully checked out user in {processEndTime - processStartTime:.4f} seconds")
+    else :
+        print("PANIC")
 
-        if compiledRequests:
-            worksheet.spreadsheet.batch_update({"requests": compiledRequests}) # Batch update all requests at once
-            print ("Batch update successful.")
+    # Debug prints
+    print(f"Year cell: {yearCell}")
+    print(f"YearDivision cell: {yearDivCell} ")
+    print(f"Month cell: {monthCell}")
+    print(f"rowToFind: {rowToFind}")
+    print(f"columnToFind: {columnToFind}")
+    commandEndTime = time.perf_counter()
+    print(f"{mode} command finished in {commandEndTime - commandStartTime:.4f} seconds\n")
 
-        commandEndTime = time.perf_counter()
-        print(f"Checkin executed in {commandEndTime - commandStartTime:.4f} seconds")
+# checkInOut_Process('Checkin')
 
-# Check out
-class Checkout: # Check-out
-    def checkout():
-        commandStartTime = time.perf_counter() # To record how long the command takes to execute
-
-        sheet = sheetInitialization() # Initialize the sheet
-        worksheet = sheet.worksheet(username) # Get the worksheet for the userID
-        worksheetID = worksheet.id # Get the worksheetID for pasteLabels later on
-
-        timeCheckedInDICT = loadJSON('checkintimes.json')
-
-        # Make a list from the activities the user has checked in to
-        user_activitiesCheckedIn = list(dict.fromkeys(timeCheckedInDICT[username].keys()))
-        print(f"{username} selected {chosen}")
-
-        for activity in chosen: #Iterate through the chosen activities, doesn't need to be sorted
-            userTimeCheckedIn = datetime.datetime.fromisoformat(timeCheckedInDICT[username][activity])
-            timeCheckedOut = datetime.datetime.now()
-
-            elapsedTime :datetime.timedelta = timeCheckedOut - userTimeCheckedIn
-            print(f"{username}'s {activity.lower()} elapsed time: {lockedInTime(elapsedTime)}")
-
-            #Copy algorithm like check-in, but paste DONE instead of ON PROGRESS for the cell update
-            #Process to find row and column to update
-            rowToFind = userTimeCheckedIn.day + rowOffset(userID) # 0-index based
-
-            # Getting column is pretty hard since it needs month and activity, which is under the month. So have to get month first
-            month = calendar.month_name[userTimeCheckedIn.month] # Get the month name from the date
-
-            #Get the month name row (1-index based), has None in the list
-            monthRowList = []
-            if userID != "591939252061732900": # Other than A_user 
-                monthRowList = worksheet.row_values(activityOffset(userID)- 1) #Offset is 1-index based, so -1 to move back onto month cell, instead of activity cell
-            else:
-                monthRowList = worksheet.row_values(3) # A_user only has 1 activity, so month is always on row 3 (1-index based) ~ special case
-
-            monthColumn = None
-            #Loops through the monthRowList and stops until the month is found, should return the index of it
-            for i, value in enumerate(monthRowList): #Index must and will be 0-index based
-                if value is not None and value.strip().lower() == month.lower():
-                    monthColumn :int = i
-                    break
-            #Checks in case month is not found
-            if monthColumn is None:
-                raise ValueError (f"Month '{month}' not found") 
-
-            compiledRequests = [] # To store all requests for batch update for later
-
-            #Get the column of the activity under the month found
-            if (username ==  'Alex'): # Only 1 activity algorithm
-                columnToFind = monthColumn 
-                
-                #Request section
-                post_pasteLabels = { #DONE to update cell | Check-out
-                        "requests": [
-                            {
-                                "copyPaste": {
-                                    "source": {
-                                        # 0-index based
-                                        "sheetId": worksheetID,
-                                        "startRowIndex": 2,  # Copies "DONE" Cell
-                                        "startColumnIndex": 0,
-                                        "endRowIndex": 3,
-                                        "endColumnIndex": 1
-                                    },
-                                    "destination": {
-                                        # 0-index based
-                                        "sheetId": worksheetID,
-                                        "startRowIndex": rowToFind,
-                                        "startColumnIndex": i,
-                                        "endRowIndex": rowToFind + 1,
-                                        "endColumnIndex": i + 1
-                                    },
-                                    "pasteType": "PASTE_NORMAL",
-                                    "pasteOrientation": "NORMAL"
-                                }
-                            }
-                        ]
-                    }
-                compiledRequests.extend(post_pasteLabels["requests"]) # Add the requests to the compiled list
-
-            else:  # 2+ activity algorithm
-                columnToFind = []
-                activityRow = worksheet.row_values(activityOffset(userID)) #Get the 4th row (1-index based), does have None in the list
-                #Loops through the activityRow and stops until the first instance of activity is found, then set columnToFind as the index
-                for i in range(monthColumn, len(userActivities[username]) + monthColumn): #Index must and will be 0-index based
-                    if activityRow[i] is not None and activityRow[i].lower() in [a.lower() for a in user_activitiesCheckedIn]: #Check if the activity matches
-                        columnToFind.append(i)
-                if columnToFind == []: #Checks in case activity is not found
-                    raise ValueError (f"Activity '{user_activitiesCheckedIn}' not found under month '{month}'")
-
-                #Request section
-                for i in columnToFind:
-                    post_pasteLabels = { #DONE to update cell | Check-out
-                        "requests": [
-                            {
-                                "copyPaste": {
-                                    "source": {
-                                        # 0-index based
-                                        "sheetId": worksheetID,
-                                        "startRowIndex": 2,  # Copies "DONE" Cell
-                                        "startColumnIndex": 0,
-                                        "endRowIndex": 3,
-                                        "endColumnIndex": 1
-                                    },
-                                    "destination": {
-                                        # 0-index based
-                                        "sheetId": worksheetID,
-                                        "startRowIndex": rowToFind,
-                                        "startColumnIndex": i,
-                                        "endRowIndex": rowToFind + 1,
-                                        "endColumnIndex": i + 1
-                                    },
-                                    "pasteType": "PASTE_NORMAL",
-                                    "pasteOrientation": "NORMAL"
-                                }
-                            }
-                        ]
-                    }
-                    
-                    compiledRequests.extend(post_pasteLabels["requests"]) # Add the requests to the compiled list
-
-        if compiledRequests:
-            print("Batch update successful.")
-            worksheet.spreadsheet.batch_update({"requests": compiledRequests}) # Batch update all requests at once
-                
-        if len(chosen) == len(user_activitiesCheckedIn):
-            timeCheckedInDICT.pop(username) 
-        else : 
-            for activity in chosen:
-                timeCheckedInDICT[username].pop(activity)      
-        saveJSON(timeCheckedInDICT, 'checkintimes.json')
-        commandEndTime = time.perf_counter()
-        print(f"Checkout executed in {commandEndTime - commandStartTime:.4f} seconds")
-
-print(Checkin().checkin())
-# print(Checkout.checkout())
-# Activate either check-in or check-out by uncommenting the above lines
+    
