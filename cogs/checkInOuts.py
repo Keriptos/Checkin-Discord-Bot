@@ -418,17 +418,7 @@ class CheckoutMenu(discord.ui.Select):
         chosen.sort()  # Sort for consistency sake, it only affects how it looks
         print(f"{interaction.user.name} selected: {chosen}")
         timeCheckedIn: dict = loadJSON('checkintimes.json')
-
-        # If user chooses to check out from all activities, remove the entire username dict from the file
-        if len(chosen) == len(self.checkedInActivities): 
-            timeCheckedIn.pop(self.username)
-        
-        else: # Otherwise, remove the specific activity key from the user's dict
-            for activity in chosen: 
-                timeCheckedIn[self.username].pop(activity)            
-        saveJSON(timeCheckedIn, 'checkintimes.json') # Save the updated dictionary back to the JSON file
-        print(f"{interaction.user.name} checked out locally for {chosen}")
-
+    
 
         await interaction.response.defer()
 
@@ -525,6 +515,17 @@ class CheckoutMenu(discord.ui.Select):
                 await interaction.followup.send(f"{interaction.user.mention} has checked out from the sheet for {activity} activity! Locked in for {lockedInTime(elapsedTime)}")
             else:
                 await interaction.followup.send(f"{interaction.user.mention} has checked out from the sheet for {activity} activities! Locked in for {lockedInTime(elapsedTime)}")
+        
+
+        # If user chooses to check out from all activities, remove the entire username dict from the file
+        if len(chosen) == len(self.checkedInActivities): 
+            timeCheckedIn.pop(self.username)
+        
+        else: # Otherwise, remove the specific activity key from the user's dict
+            for activity in chosen: 
+                timeCheckedIn[self.username].pop(activity)            
+        saveJSON(timeCheckedIn, 'checkintimes.json') # Save the updated dictionary back to the JSON file
+        print(f"{interaction.user.name} checked out locally for {chosen}")
         
         # Remove checkin cache
         try:             
