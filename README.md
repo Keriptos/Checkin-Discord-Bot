@@ -12,3 +12,7 @@ These files are ignored by git and must be created locally.
 Example structures:
 - users.example.json
 - checkintimes.example.json
+
+# Installation: 
+
+pip install requirements.txt
