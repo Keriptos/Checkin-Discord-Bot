@@ -526,7 +526,7 @@ class CheckoutMenu(discord.ui.Select):
                 timeCheckedIn[self.username].pop(activity)            
         saveJSON(timeCheckedIn, 'checkintimes.json') # Save the updated dictionary back to the JSON file
         print(f"{interaction.user.name} checked out locally for {chosen}")
-        
+
         # Remove checkin cache
         try:             
             startCheckinCache = time.perf_counter()
@@ -559,8 +559,8 @@ class CheckInOuts(commands.Cog):
     async def on_ready(self):
         print(f"{__name__} is online!")
     
-    @app_commands.command(name = "demo_checkinmenu", description = "Checks you in to the google sheet")
-    async def demo_checkinMenu(self, interaction: discord.Interaction):
+    @app_commands.command(name = "checkinmenu", description = "Checks you in to the google sheet")
+    async def checkinMenu(self, interaction: discord.Interaction):
         userID = str(interaction.user.id)        
         usersData = loadJSON('demo.json')
         
@@ -578,8 +578,8 @@ class CheckInOuts(commands.Cog):
             await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
 
 
-    @app_commands.command(name="demo_checkoutmenu", description="Checks you out from the google sheet")
-    async def demo_checkoutMenu(self, interaction: discord.Interaction):
+    @app_commands.command(name="checkoutmenu", description="Checks you out from the google sheet")
+    async def checkoutMenu(self, interaction: discord.Interaction):
         userID = str(interaction.user.id)
         usersData = loadJSON('demo.json')        
         
