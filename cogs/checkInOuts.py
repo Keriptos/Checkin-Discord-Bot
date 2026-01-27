@@ -60,11 +60,6 @@ def sheetInitialization():
         print("Initialized Google Sheet client")
     return sheet
 
-# worksheets = {}
-# def getWorksheet(sheet: Spreadsheet, username: str) -> Worksheet:
-#     if username not in worksheets:
-#         worksheets[username] = sheet.worksheet(username)
-#     return worksheets[username]
 
 def setYearDivisionFormat(userFormat: str, date: datetime.datetime):
     # Semester 1 --> 1 2 3 4 5 6 | Semester 2 --> 7 8 9 10 11 12
@@ -324,19 +319,33 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
                         }
                     ]
                 }
-                compiledRequests.extend(CheckInReq["requests"]) # Add the requests to the compiled list
-            
+                compiledRequests.extend(CheckInReq["requests"]) # Add the requests to the compiled list        
         try:
             if compiledRequests is not None:
                 processStartTime = time.perf_counter()                             
-                worksheet.spreadsheet.batch_update({"requests": compiledRequests}) # Batch update all requests at once
-                print("Batch update successful.")
+                worksheet.spreadsheet.batch_update({"requests": compiledRequests}) # Batch update all requests at once                
                 processEndTime = time.perf_counter()
                 print(f"Sucessfully checked in user in {processEndTime - processStartTime:.4f} seconds")
             else :
                 print("PANIC, not catched error!")
         except Exception as error:
             print(f"An error has occured when batch-updatin, {error}\n")
+
+        # Check-in cache, will implment other caches too
+        try:
+            startCache = time.perf_counter()
+            sheetCache = loadJSON('sheet_cache.json')
+            if self.userID not in sheetCache:
+                sheetCache[self.userID] = {}
+                sheetCache[self.userID]['username'] = self.username
+                sheetCache[self.userID]['checkinCell'] = {}
+            sheetCache[self.userID]['checkinCell']['row'] = rowToFind
+            sheetCache[self.userID]['checkinCell']['col'] = columnToFind
+            saveJSON(sheetCache, 'sheet_cache.json')
+            endCache = time.perf_counter()
+            print(f"Sucessfully wrote {interaction.user.name}'s check-in cache in {endCache - startCache:.8f} seconds")
+        except Exception as error:
+            print(f"An error has occured when writing to sheet_cache {error}")
 
             # Debug
             print(f"User who failed to check-out: {interaction.user.name}, registered as {self.username} with ID: {self.userID}")
@@ -346,14 +355,10 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
             print(f"Month cell: {monthCell}")
             print(f"rowToFind: {rowToFind}")
             print(f"columnToFind: {columnToFind}\n")
-
-
             await interaction.followup.send(f"Failed to check-in to sheets!")
             await interaction.followup.send(f"Error: {error}", ephemeral=True)
         
-        # Respone message
-        if chosen:
-            print(f"{interaction.user.name} checked in for {chosen}")
+                
         await interaction.followup.send(f"{interaction.user.mention} has checked in to the sheets for {chosen}")
 
         commandEndTime = time.perf_counter()
@@ -414,6 +419,17 @@ class CheckoutMenu(discord.ui.Select):
         print(f"{interaction.user.name} selected: {chosen}")
         timeCheckedIn: dict = loadJSON('checkintimes.json')
 
+        # If user chooses to check out from all activities, remove the entire username dict from the file
+        if len(chosen) == len(self.checkedInActivities): 
+            timeCheckedIn.pop(self.username)
+        
+        else: # Otherwise, remove the specific activity key from the user's dict
+            for activity in chosen: 
+                timeCheckedIn[self.username].pop(activity)            
+        saveJSON(timeCheckedIn, 'checkintimes.json') # Save the updated dictionary back to the JSON file
+        print(f"{interaction.user.name} checked out locally for {chosen}")
+
+
         await interaction.response.defer()
 
         # Syncing to Sheets (Check-out)
@@ -422,24 +438,18 @@ class CheckoutMenu(discord.ui.Select):
         worksheetID = worksheet.id # Get the worksheetID for pasteLabels later on
         
         timeCheckedOut = datetime.datetime.now()
-
-        # Get year        
-        yearCell, timeColumn = getYearCell(self.userFormat, worksheet, timeCheckedOut)
-
-        # Get year divison (semester or quarter) - Only for non-yearly formats
-        yearDivCell = None
-        if self.userFormat != "Yearly":
-            yearDivToFind = setYearDivisionFormat(self.userFormat, timeCheckedOut)
-            DTO = YearDivisionDTO(yearDivToFind, yearCell, timeColumn)
-            yearDivCell = getYearDivision(DTO)
         
-        monthCell = getMonthCell(self.userID, timeCheckedOut, yearCell, yearDivCell)
 
-        if self.userFormat == "Yearly":  # Only 1 activity algorithm
-            # Decrement by 1 so that it's 0-indexed
-            rowToFind = (monthCell["row"] - 1) + timeCheckedOut.day  # The first day is a row after monthRow. 
-            columnToFind = monthCell["col"] - 1 # Since there's only 1 activity, columnToFind is just monthColumn
+            
+        processStartTime = time.perf_counter()
+        sheetCache = loadJSON('sheet_cache.json')
+        rowToFind = sheetCache[self.userID]['checkinCell']['row']
+        columnToFind = sheetCache[self.userID]['checkinCell']['col']
+        processEndTime = time.perf_counter()
+        print(f"Successfully gotten row and col from sheet_cache in {processEndTime - processStartTime:.4f} seconds")
 
+
+        if self.userFormat == "Yearly":  # Only 1 activity algorithm                    
             #Request section
             compiledRequests = [] # To store all requests for batch update for later
             CheckInOutsReq = { #Write ON PROGRESS to update cell (we used conditional formatting when making the table) | Check-in
@@ -463,22 +473,7 @@ class CheckoutMenu(discord.ui.Select):
             }
             compiledRequests.extend(CheckInOutsReq["requests"]) # Add the requests to the compiled list
 
-        else: # 2+ algorithm                
-            rowToFind = monthCell["row"] + timeCheckedOut.day # The first day is 2 rows after monthRow. (0-indexed)
-
-            # Map the activity and offset it based on monthCell
-            activityIndex = {}
-            for index, activity in enumerate(self.userActivities):
-                activityIndex[activity] = index
-
-            columnToFind = []
-            for activity in chosen:
-                if activity in activityIndex:
-                    baseIndex = activityIndex[activity]                
-                    columnToFind.append(baseIndex + monthCell["col"] - 1)
-                else:
-                    raise ValueError(f"Activity '{activity}' not found")
-            
+        else: # 2+ algorithm                                                    
             # Request section            
             compiledRequests = [] # To store all requests for batch update for later
             for col in columnToFind:
@@ -506,23 +501,16 @@ class CheckoutMenu(discord.ui.Select):
         try:
             if compiledRequests is not None:
                 processStartTime = time.perf_counter()
-                worksheet.spreadsheet.batch_update({"requests": compiledRequests}) # Batch update all requests at once
-                print("Batch update successful.")
+                worksheet.spreadsheet.batch_update({"requests": compiledRequests}) # Batch update all requests at once                
                 processEndTime = time.perf_counter()
-                print(f"Sucessfully checked out user in {processEndTime - processStartTime:.4f} seconds")        
+                print(f"Sucessfully checked out user in {processEndTime - processStartTime:.4f} seconds")
 
         except Exception as error:
-            print(f"An error has occured when batch-updatin, {error}\n")
-
             # Debug
-            print(f"User who failed to check-out: {interaction.user.name}, registered as {self.username} with ID: {self.userID}")
-            print(f"Year cell: {yearCell}")
-            if self.userFormat != "Yearly":
-                print(f"YearDivision cell: {yearDivCell}")
-            print(f"Month cell: {monthCell}")
+            print(f"An error has occured when batch-updatin, {error}\n")
+            print(f"User who failed to check-out: {interaction.user.name}, registered as {self.username} with ID: {self.userID}")                            
             print(f"rowToFind: {rowToFind}")
             print(f"columnToFind: {columnToFind}\n")
-
 
             await interaction.followup.send(f"Failed to check-out from sheets!")
             await interaction.followup.send(f"Error: {error}", ephemeral=True) 
@@ -537,17 +525,17 @@ class CheckoutMenu(discord.ui.Select):
                 await interaction.followup.send(f"{interaction.user.mention} has checked out from the sheet for {activity} activity! Locked in for {lockedInTime(elapsedTime)}")
             else:
                 await interaction.followup.send(f"{interaction.user.mention} has checked out from the sheet for {activity} activities! Locked in for {lockedInTime(elapsedTime)}")
-
-        # If user chooses to check out from all activities, remove the entire username dict from the file
-        if len(chosen) == len(self.checkedInActivities): 
-            timeCheckedIn.pop(self.username)
-            print(f"{interaction.user.name} checked out from all of their activities")
-
-        else: # Otherwise, remove the specific activity key from the user's dict
-            for activity in chosen: 
-                timeCheckedIn[self.username].pop(activity)
-            print(f"{interaction.user.name} checked out from {chosen} activity")
-        saveJSON(timeCheckedIn, 'checkintimes.json') # Save the updated dictionary back to the JSON file
+        
+        # Remove checkin cache
+        try:             
+            startCheckinCache = time.perf_counter()
+            print(f"checkinCell: {sheetCache[self.userID]['checkinCell']}")
+            del sheetCache[self.userID]
+            saveJSON(sheetCache, 'sheet_cache.json')
+            endCheckinCache = time.perf_counter()
+            print(f"Succesfully deleted {interaction.user.name}'s check-in cache in {endCheckinCache - startCheckinCache:8f} seconds")
+        except Exception as error:
+            print(f"An error has occured when deleting user's dict from sheet_cache {error}")
         
         commandEndTime = time.perf_counter()
         print(f"Checkout executed in {commandEndTime - commandStartTime:.4f} seconds\n")
