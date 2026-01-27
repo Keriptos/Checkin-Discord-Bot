@@ -1,11 +1,14 @@
 #DO NOT LEAK
 .env
-*.json
+users.json
+checkintimes.json
+credentials.json
+demo.json
+userActivities.json
 *.bat
 
 #Unimportant files
 __pycache__/
-NodeJS_stuff/
 test.py
 testingground.py
 
