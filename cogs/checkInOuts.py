@@ -152,7 +152,7 @@ def getYearDivision(DTO: YearDivisionDTO):
 def getMonthCell(userID:str, date: datetime.datetime, yearCell: dict, yearDivCell: dict | None):
     # All values are 1 - indexed
     monthStart = time.perf_counter()
-    usersData = loadJSON('demo.json')
+    usersData = loadJSON('users.json')
     
     userFormat = usersData[userID]['format']
     if userFormat == "Yearly":
@@ -173,7 +173,7 @@ def getMonthCell(userID:str, date: datetime.datetime, yearCell: dict, yearDivCel
 class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 at once
     def __init__(self, userID: str, sheet: Spreadsheet):
         self.userID = userID
-        self.usersData: dict = loadJSON('demo.json')
+        self.usersData: dict = loadJSON('users.json')
         self.username: str = self.usersData[userID]['username']
         self.userFormat: str = self.usersData[userID]['format']
         self.sheet: Spreadsheet = sheet
@@ -377,7 +377,7 @@ class CheckoutMenu(discord.ui.Select):
     def __init__(self, userID: str, sheet: Spreadsheet):
         #Declarations to be locally used in the class
         self.userID = userID
-        self.usersData: dict = loadJSON('demo.json')
+        self.usersData: dict = loadJSON('users.json')
         self.username: str = self.usersData[userID]['username']
         self.userFormat: str = self.usersData[userID]['format']
         self.userActivities: list = self.usersData[userID]['activities']
@@ -562,7 +562,7 @@ class CheckInOuts(commands.Cog):
     @app_commands.command(name = "checkinmenu", description = "Checks you in to the google sheet")
     async def checkinMenu(self, interaction: discord.Interaction):
         userID = str(interaction.user.id)        
-        usersData = loadJSON('demo.json')
+        usersData = loadJSON('users.json')
         
 
         print(f"{interaction.user.name} is trying to check in")
@@ -581,7 +581,7 @@ class CheckInOuts(commands.Cog):
     @app_commands.command(name="checkoutmenu", description="Checks you out from the google sheet")
     async def checkoutMenu(self, interaction: discord.Interaction):
         userID = str(interaction.user.id)
-        usersData = loadJSON('demo.json')        
+        usersData = loadJSON('users.json')        
         
 
         print(f"{interaction.user.name} is trying to check out")

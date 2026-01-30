@@ -482,7 +482,7 @@ class Registration (commands.Cog):
         commandStartTime = time.perf_counter() # To record how long the command takes to execute
         STR_userID = str(interaction.user.id)
 
-        usersData = loadJSON('demo.json')
+        usersData = loadJSON('users.json')
         
         if STR_userID in usersData: 
             print(f"{interaction.user.name} has already registered! Stopping registration process.\n")
@@ -514,7 +514,7 @@ class Registration (commands.Cog):
         
         # Save the data to local file
         processStartTime = time.perf_counter()
-        saveJSON(usersData, 'demo.json')
+        saveJSON(usersData, 'users.json')
         processEndTime = time.perf_counter()
         print(f"Registered as {name} into the local logs in {processEndTime - processStartTime:.4f} seconds")
 
