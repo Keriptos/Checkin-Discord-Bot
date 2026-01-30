@@ -1,0 +1,13 @@
+{
+    "USER_ID_HERE": {
+        "username": "UserExample",
+        "activities": {
+            "Activity1": {
+                "checkinCell": {
+                    "row": 1,
+                    "col": 2
+                }
+            }
+        }
+    }
+}
