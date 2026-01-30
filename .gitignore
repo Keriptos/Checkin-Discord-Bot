@@ -4,6 +4,7 @@ users.json
 checkintimes.json
 credentials.json
 userActivities.json
+sheetCache.json
 *.bat
 
 #Unimportant files

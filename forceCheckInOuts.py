@@ -246,7 +246,7 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
     # Set-up cache when checking in
     try:
         startCache = time.perf_counter()
-        sheetCache = loadJSON('sheet_cache.json')
+        sheetCache = loadJSON('sheetCache.json')
         if DTO.userID not in sheetCache:
             sheetCache[DTO.userID] = {}
             sheetCache[DTO.userID]['username'] = DTO.username
@@ -254,7 +254,7 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
             for activity in chosen:
                 sheetCache[DTO.userID]['activities'][activity] = {}
                 sheetCache[DTO.userID]['activities'][activity]['checkinCell'] = {}
-        saveJSON(sheetCache, 'sheet_cache.json')
+        saveJSON(sheetCache, 'sheetCache.json')
         endCache = time.perf_counter()
         print(f"Sucessfully set up {DTO.username}'s check-in cache in {endCache - startCache:.8f} seconds")
     except Exception as error:
@@ -273,7 +273,7 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
             sheetCache[DTO.userID]['activities'][activity]['checkinCell']['row']= rowToFind 
             sheetCache[DTO.userID]['activities'][activity]['checkinCell']['col']= columnToFind
         rowColEnd = time.perf_counter()
-        saveJSON(sheetCache, 'sheet_cache.json')
+        saveJSON(sheetCache, 'sheetCache.json')
         print(f"Sucessfully wrote {DTO.username}'s checkinCell into sheetCache in {rowColEnd - rowColStart:.8f} seconds")
 
         # Request section
@@ -311,7 +311,7 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
 
 
         rowToFind = monthCell["row"] + date.day # The first day is 2 rows after monthRow. (0-indexed)
-        sheetCache = loadJSON('sheet_cache.json')
+        sheetCache = loadJSON('sheetCache.json')
         sheetCache[DTO.userID]['activities'][activity]['checkinCell']['row'] = rowToFind
 
         # Map the activities, offset it based on monthCell, and save it to sheetCache
@@ -328,7 +328,7 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
                 sheetCache[DTO.userID]['activities'][activity]['checkinCell']['col'] = offset
             else:
                 raise ValueError(f"Activity '{activity}' not found")
-        saveJSON(sheetCache, 'sheet_cache.json')
+        saveJSON(sheetCache, 'sheetCache.json')
             
         # Request section        
         compiledRequests = [] # To store all requests for batch update for later
@@ -375,7 +375,7 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
     worksheetID = worksheet.id
 
     # Get rowToFind and columnToFind from sheetCache
-    sheetCache: dict = loadJSON('sheet_cache.json')
+    sheetCache: dict = loadJSON('sheetCache.json')
     compiledRequests = []
     for activity in chosen:
         rowToFind = sheetCache[DTO.userID]['activities'][activity]['checkinCell']['row']
@@ -438,7 +438,7 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
                 print(f"{DTO.username} is not fully checked-out yet")
 
 
-        saveJSON(sheetCache, 'sheet_cache.json')
+        saveJSON(sheetCache, 'sheetCache.json')
         
     except Exception as error:
         print(f"An error has occured when deleting user's dict from sheet_cache {error}")

@@ -334,14 +334,14 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
         # Check-in cache, will implment other caches too
         try:
             startCache = time.perf_counter()
-            sheetCache = loadJSON('sheet_cache.json')
+            sheetCache = loadJSON('sheetCache.json')
             if self.userID not in sheetCache:
                 sheetCache[self.userID] = {}
                 sheetCache[self.userID]['username'] = self.username
                 sheetCache[self.userID]['checkinCell'] = {}
             sheetCache[self.userID]['checkinCell']['row'] = rowToFind
             sheetCache[self.userID]['checkinCell']['col'] = columnToFind
-            saveJSON(sheetCache, 'sheet_cache.json')
+            saveJSON(sheetCache, 'sheetCache.json')
             endCache = time.perf_counter()
             print(f"Sucessfully wrote {interaction.user.name}'s check-in cache in {endCache - startCache:.8f} seconds")
         except Exception as error:
@@ -432,7 +432,7 @@ class CheckoutMenu(discord.ui.Select):
 
             
         processStartTime = time.perf_counter()
-        sheetCache = loadJSON('sheet_cache.json')
+        sheetCache = loadJSON('sheetCache.json')
         rowToFind = sheetCache[self.userID]['checkinCell']['row']
         columnToFind = sheetCache[self.userID]['checkinCell']['col']
         processEndTime = time.perf_counter()
@@ -532,7 +532,7 @@ class CheckoutMenu(discord.ui.Select):
             startCheckinCache = time.perf_counter()
             print(f"checkinCell: {sheetCache[self.userID]['checkinCell']}")
             del sheetCache[self.userID]
-            saveJSON(sheetCache, 'sheet_cache.json')
+            saveJSON(sheetCache, 'sheetCache.json')
             endCheckinCache = time.perf_counter()
             print(f"Succesfully deleted {interaction.user.name}'s check-in cache in {endCheckinCache - startCheckinCache:8f} seconds")
         except Exception as error:
