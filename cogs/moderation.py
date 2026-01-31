@@ -121,12 +121,12 @@ class Moderation(commands.Cog) :
     async def reload(self, interaction: discord.Interaction, cogfile: str):
         commandStartTime = time.perf_counter()
         print(f"{interaction.user.name} is trying to reload a cog file")
-
+        await interaction.response.defer()
         try:
             await self.bot.reload_extension(f"{cogfile}")
-            await interaction.response.send_message(f"Reloaded {cogfile} succesfully!", ephemeral=True)
+            await interaction.followup.send(f"Reloaded {cogfile} succesfully!", ephemeral=True)
         except Exception as error:
-             await interaction.response.send_message(f"Failed to reload {cogfile}, {error}!", ephemeral=True)
+             await interaction.followup.send(f"Failed to reload {cogfile}, {error}!", ephemeral=True)
 
         commandEndTime = time.perf_counter()
         print(f"Ended cogReload command in {commandEndTime - commandStartTime:0.4f} seconds\n")
