@@ -18,7 +18,8 @@ from datetime import timedelta
 
 g_sheet = None
 
-def lockedInTime(elapsedTime:datetime.timedelta):
+def lockedInTime(elapsedTime: datetime.timedelta):
+    # Only handles the same day time difference. User is expected to check-out at the same day
     hours = elapsedTime.seconds // 3600
     minutes = (elapsedTime.seconds % 3600) // 60     
     seconds = elapsedTime.seconds % 60
@@ -510,7 +511,7 @@ class CheckoutMenu(discord.ui.Select):
                             }
                         ]
                     }
-                    compiledRequests.extend(CheckOutReq["requests"])
+                    compiledRequests.extend(CheckOutReq["requests"])                    
             except Exception as error:
                 print(f"An error occured when fetching rowToFind/columnToFind")
 
@@ -605,6 +606,7 @@ class CheckInOuts(commands.Cog):
     async def checkinMenu(self, interaction: discord.Interaction):
         userID = str(interaction.user.id)        
         usersData = loadJSON('users.json')
+        timeCheckedIn: dict = loadJSON('checkintimes.json')
         
 
         print(f"{interaction.user.name} is trying to check in")
@@ -612,6 +614,10 @@ class CheckInOuts(commands.Cog):
             print(f"{interaction.user.name} is not registered")
             await interaction.response.send_message("You are not registered. Please register first!", ephemeral=True)
             return
+        if userID in timeCheckedIn: # Check if user has checked in
+            print(f"{interaction.user.name} tried to re-checkin")
+            await interaction.response.send_message("You've already checked in! No need to check-in anymore!", ephemeral=True)
+            return 
         
         try:
             await interaction.response.send_message("Please select your activity to check-in:", view=CheckinMenuView(userID))
@@ -624,14 +630,17 @@ class CheckInOuts(commands.Cog):
     async def checkoutMenu(self, interaction: discord.Interaction):
         userID = str(interaction.user.id)
         usersData = loadJSON('users.json')        
-        
+        timeCheckedIn: dict = loadJSON('checkintimes.json')
 
         print(f"{interaction.user.name} is trying to check out")
         if userID not in usersData: # Check if user is registered
             print(f"{interaction.user.name} is not registered")
             await interaction.response.send_message("You are not registered. Please register first!", ephemeral=True)
             return
-        
+        if userID in timeCheckedIn: # Check if user has checked in
+            print(f"{interaction.user.name} tried to check-out but hadn't checked in")
+            await interaction.response.send_message("You haven't checked in! Please check-in first before you check-out!", ephemeral=True)
+            return 
         try:
             await interaction.response.send_message("Please select your activity to check-out:", view=CheckoutMenuView(userID))
         except Exception as error:
