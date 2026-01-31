@@ -171,12 +171,11 @@ def getMonthCell(userID:str, date: datetime.datetime, yearCell: dict, yearDivCel
     return monthCell
 
 class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 at once
-    def __init__(self, userID: str, sheet: Spreadsheet):
+    def __init__(self, userID: str):
         self.userID = userID
         self.usersData: dict = loadJSON('users.json')
         self.username: str = self.usersData[userID]['username']
-        self.userFormat: str = self.usersData[userID]['format']
-        g_sheet: Spreadsheet = sheet
+        self.userFormat: str = self.usersData[userID]['format']        
 
         # Basically make a list of activities from user's registered activitiies
         self.userActivities = self.usersData[userID]['activities']
@@ -589,9 +588,9 @@ class CheckoutMenu(discord.ui.Select):
         await interaction.response.send_message("Check-out menu timed out")
 
 class CheckoutMenuView(discord.ui.View):
-    def __init__(self, userID: str, sheet: Spreadsheet):
+    def __init__(self, userID: str):
         super().__init__(timeout=60)
-        self.add_item(CheckoutMenu(userID, sheet))
+        self.add_item(CheckoutMenu(userID))
 
 class CheckInOuts(commands.Cog):
     commandStartTime = time.perf_counter() # To record how long loading the cog takes
@@ -634,7 +633,7 @@ class CheckInOuts(commands.Cog):
             return
         
         try:
-            await interaction.response.send_message("Please select your activity to check-out:", view=CheckoutMenuView(userID, g_sheet))
+            await interaction.response.send_message("Please select your activity to check-out:", view=CheckoutMenuView(userID))
         except Exception as error:
             print(f"Error in checkoutMenu: {error}\n")
             await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
