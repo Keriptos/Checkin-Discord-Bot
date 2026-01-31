@@ -1,5 +1,9 @@
 {
-    "UserExample": {
-        "Activity1": "2026-01-01T13:00:00.000000"
+    "USER_ID_HERE":{
+        "username": "UserExample",
+        "activities": {
+            "Activity1": "2026-01-01T13:00:00.000000"
+        }
+        
     }
 }

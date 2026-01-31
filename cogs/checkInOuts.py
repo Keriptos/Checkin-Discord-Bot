@@ -219,12 +219,14 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
         timeCheckedIn = loadJSON('checkintimes.json')
 
         # If user hasn't checked in, make an empty dict for user
-        if self.username not in timeCheckedIn:
-            timeCheckedIn[self.username] = {}
+        if self.userID not in timeCheckedIn:
+            timeCheckedIn[self.userID] = {}
+            timeCheckedIn[self.userID]['username'] = self.username # This is purely just for readability
+            timeCheckedIn[self.userID]['activities'] = {}
 
         for activity in chosen:            
             # Username and activity = keys, time as the value into dictionary
-            timeCheckedIn[self.username][activity] = datetime.datetime.now().isoformat()            
+            timeCheckedIn[self.userID]['activities'][activity] = datetime.datetime.now().isoformat()
         saveJSON(timeCheckedIn, 'checkintimes.json')
 
         end = time.perf_counter()
@@ -250,7 +252,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
             if self.userID not in sheetCache:
                 sheetCache[self.userID] = {}
                 sheetCache[self.userID]['username'] = self.username
-                sheetCache[self.userID]['activities'] = {}                
+                sheetCache[self.userID]['activities'] = {}
                 for activity in chosen:
                     sheetCache[self.userID]['activities'][activity] = {}
                     sheetCache[self.userID]['activities'][activity]['checkinCell'] = {}                    
@@ -333,9 +335,9 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
                     sheetCache[self.userID]['activities'][activity]['checkinCell']['col'] = offset
                 else:
                     raise ValueError(f"Activity '{activity}' not found")                             
-            saveJSON(sheetCache, 'sheetCache.json')            
+            saveJSON(sheetCache, 'sheetCache.json')     
 
-            # Request section            
+            # Request section
             compiledRequests = [] 
             for col in columnToFind:
                 CheckInReq = { #Write ON PROGRESS to update cell (we used conditional formatting when making the table) | Check-in
@@ -369,7 +371,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
             else :
                 print("PANIC, not catched error!")
         except Exception as error:
-            print(f"An error has occured when batch-updatin, {error}\n")        
+            print(f"An error has occured when batch-updatin, {error}\n") 
 
             # Debug
             print(f"User who failed to check-out: {interaction.user.name}, registered as {self.username} with ID: {self.userID}")
@@ -407,7 +409,8 @@ class CheckoutMenu(discord.ui.Select):
 
 
         # Basically make a list out of the activity keys from checkintimes.json UNDER their usernames
-        self.checkedInActivities = list(dict.fromkeys(loadJSON('checkintimes.json').get(self.username).keys()))
+        checkinsFile = loadJSON('checkintimes.json')
+        self.checkedInActivities = list(dict.fromkeys(checkinsFile[self.userID]['activities'].keys()))
 
         options = []
         for activity in self.checkedInActivities:
@@ -535,7 +538,7 @@ class CheckoutMenu(discord.ui.Select):
                  
         # Response message
         for activity in chosen:
-            userTimeCheckedIn = datetime.datetime.fromisoformat(timeCheckedIn[self.username][activity])
+            userTimeCheckedIn = datetime.datetime.fromisoformat(timeCheckedIn[self.userID]['activities'][activity])
             elapsedTime: timedelta = timeCheckedOut - userTimeCheckedIn
             print(f"{interaction.user.name}'s {activity} elapsed time: {lockedInTime(elapsedTime)}")
             if len(chosen) == 1:
@@ -545,11 +548,11 @@ class CheckoutMenu(discord.ui.Select):
         
         # If user chooses to check out from all activities, remove the entire username dict from the file
         if len(chosen) == len(self.checkedInActivities): 
-            timeCheckedIn.pop(self.username)
+            timeCheckedIn.pop(self.userID)
         
         else: # Otherwise, remove the specific activity key from the user's dict
             for activity in chosen: 
-                timeCheckedIn[self.username].pop(activity)            
+                timeCheckedIn[self.userID]['activities'].pop(activity)            
         saveJSON(timeCheckedIn, 'checkintimes.json') # Save the updated dictionary back to the JSON file
         print(f"{interaction.user.name} checked out locally for {chosen}")
 
@@ -611,11 +614,11 @@ class CheckInOuts(commands.Cog):
 
         print(f"{interaction.user.name} is trying to check in")
         if userID not in usersData: # Check if user is registered
-            print(f"{interaction.user.name} is not registered")
+            print(f"{interaction.user.name} is not registered\n")
             await interaction.response.send_message("You are not registered. Please register first!", ephemeral=True)
             return
         if userID in timeCheckedIn: # Check if user has checked in
-            print(f"{interaction.user.name} tried to re-checkin")
+            print(f"{interaction.user.name} tried to re-checkin\n")
             await interaction.response.send_message("You've already checked in! No need to check-in anymore!", ephemeral=True)
             return 
         
@@ -634,11 +637,11 @@ class CheckInOuts(commands.Cog):
 
         print(f"{interaction.user.name} is trying to check out")
         if userID not in usersData: # Check if user is registered
-            print(f"{interaction.user.name} is not registered")
+            print(f"{interaction.user.name} is not registered\n")
             await interaction.response.send_message("You are not registered. Please register first!", ephemeral=True)
             return
-        if userID in timeCheckedIn: # Check if user has checked in
-            print(f"{interaction.user.name} tried to check-out but hadn't checked in")
+        if userID not in timeCheckedIn: # Check if user has already checked-out
+            print(f"{interaction.user.name} tried to check-out but hadn't checked in\n")
             await interaction.response.send_message("You haven't checked in! Please check-in first before you check-out!", ephemeral=True)
             return 
         try:
@@ -649,5 +652,5 @@ class CheckInOuts(commands.Cog):
 
     
 async def setup(bot: commands.Bot):
-    GUILD_ID = discord.Object(id = 1391372922219659435) #This is my server's ID, and I'm only gonna use it for my server
+    GUILD_ID = discord.Object(id = 1391372922219659435) # This is my server's ID, and I'm only gonna use it for my server
     await bot.add_cog(CheckInOuts(bot), guild = GUILD_ID)
