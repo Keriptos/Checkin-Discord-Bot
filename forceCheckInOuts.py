@@ -228,6 +228,23 @@ class CheckInOutsDTO():
 # Update to sheets (Check-in)
 def CheckIn(DTO: CheckInOutsDTO, chosen: list):
     commandStartTime = time.perf_counter()
+    
+    # Local check-in
+    start = time.perf_counter()
+    timeCheckedIn = loadJSON('checkintimes.json')
+
+    # If user hasn't checked in, make an empty dict for user
+    if DTO.username not in timeCheckedIn:
+        timeCheckedIn[DTO.username] = {}
+
+    for activity in chosen:            
+        # Username and activity = keys, time as the value into dictionary
+        timeCheckedIn[DTO.username][activity] = datetime.datetime.now().isoformat()            
+    saveJSON(timeCheckedIn, 'checkintimes.json')
+    end = time.perf_counter()
+    print(f"Succesfully saved timestamp locally in {end - start:.8f} seconds")
+
+
     print("Going to sheets")
     sheet = sheetInitialization()
     worksheet = sheet.worksheet(DTO.username) # Get the worksheet for the userID
@@ -374,6 +391,10 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
     worksheet = sheet.worksheet(DTO.username)
     worksheetID = worksheet.id
 
+    timeCheckedIn = loadJSON('checkintimes.json')    
+    timeCheckedOut = datetime.datetime.now()
+           
+
     # Get rowToFind and columnToFind from sheetCache
     sheetCache: dict = loadJSON('sheetCache.json')
     compiledRequests = []
@@ -412,6 +433,28 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
     else :
         print("PANIC")
 
+
+    # Response message
+    for activity in chosen:
+        userTimeCheckedIn = datetime.datetime.fromisoformat(timeCheckedIn[DTO.username][activity]) 
+        elapsedTime: timedelta = timeCheckedOut - userTimeCheckedIn
+        print(f"{DTO.username}'s {activity} elapsed time: {lockedInTime(elapsedTime)}")
+        if len(chosen) == 1:
+            print(f"{DTO.username} has checked out from the sheet for {activity} activity! Locked in for {lockedInTime(elapsedTime)}")
+        else:
+            print(f"{DTO.username} has checked out from the sheet for {activity} activities! Locked in for {lockedInTime(elapsedTime)}")
+
+    # If user chooses to check out from all activities, remove the entire username dict from the file
+    if len(chosen) == len(chosen): 
+        timeCheckedIn.pop(DTO.username)
+    
+    else: # Otherwise, remove the specific activity key from the user's dict
+        for activity in chosen: 
+            timeCheckedIn[DTO.username].pop(activity)            
+    saveJSON(timeCheckedIn, 'checkintimes.json') # Save the updated dictionary back to the JSON file
+    print(f"{DTO.username} checked out locally for {chosen}")
+
+    # Remove check-in cache
     try:             
         startCheckinCache = time.perf_counter()
         # Delete activty dict from user   
@@ -436,10 +479,7 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
                 print(f"Succesfully deleted {DTO.username}'s {chosen} check-in cache in {endCheckinCache - startCheckinCache:8f} seconds")                
             else:
                 print(f"{DTO.username} is not fully checked-out yet")
-
-
-        saveJSON(sheetCache, 'sheetCache.json')
-        
+        saveJSON(sheetCache, 'sheetCache.json')        
     except Exception as error:
         print(f"An error has occured when deleting user's dict from sheet_cache {error}")
     commandEndTime = time.perf_counter()
