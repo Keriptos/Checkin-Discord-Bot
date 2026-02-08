@@ -15,7 +15,7 @@ TOKEN: str = os.getenv("discordToken")
 bot = commands.Bot(command_prefix = None,  intents = discord.Intents.all()) # command_prefix is not needed for app commands
 
 @bot.event
-async def on_ready():
+async def on_ready():    
     print("Bot Ready!") 
     
     # Sync commands to the bot
@@ -29,7 +29,7 @@ async def on_ready():
     
 
 
-async def load():
+async def load():    
     print("Syncing cogs...")
     for filename in os.listdir("./cogs"):
         if filename.endswith(".py"):
