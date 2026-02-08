@@ -9,10 +9,10 @@ import json
 import os
 import datetime
 from datetime import timedelta
-from enum import Enum # For defining labels
+from services.sheetService import sheetInitialization
 import time # To track how long commands take to execute
 
-sheet = None
+SHEET = sheetInitialization()
 
 def lockedInTime(elapsedTime: timedelta):
     hours = elapsedTime.seconds // 3600
@@ -42,27 +42,6 @@ def loadJSON(file_path):
 def saveJSON(data, file_path):
     with open(file_path, 'w') as file:
         json.dump(data, file, indent = 4)
-
-def sheetInitialization():
-    start = time.perf_counter()
-    global sheet
-    if sheet is None:
-        from dotenv import load_dotenv
-        load_dotenv(".env")
-        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-        creds = Credentials.from_service_account_file("credentials.json", scopes = scopes)
-        client = gspread.authorize(creds)
-
-        googlesheetID = os.getenv("googleSheetID")
-        sheet = client.open_by_key(googlesheetID)
-        end = time.perf_counter()
-        print(f"Succesfully opened sheet client in {end - start:4f} seconds")
-    return sheet
-
-
-
-    
-    
 
 
 """
@@ -246,8 +225,8 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
 
 
     print("Going to sheets")
-    sheet = sheetInitialization()
-    worksheet = sheet.worksheet(DTO.username) # Get the worksheet for the userID
+    
+    worksheet = SHEET.worksheet(DTO.username) # Get the worksheet for the userID
     worksheetID = worksheet.id
 
     date = datetime.datetime.now() # Get the value from userID, which is the time checked in for that specific user
@@ -387,8 +366,8 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
         
 def CheckOut(DTO: CheckInOutsDTO, chosen: list):
     commandStartTime = time.perf_counter()
-    sheet = sheetInitialization()
-    worksheet = sheet.worksheet(DTO.username)
+    
+    worksheet = SHEET.worksheet(DTO.username)
     worksheetID = worksheet.id
 
     timeCheckedIn = loadJSON('checkintimes.json')    
@@ -489,8 +468,8 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
 def main():    
     """--------- MUST FILL!------------"""
 
-    userID = 591939252061732900
-    chosen = ['Coding']
+    userID = int("YOUR_USER_ID_HERE")
+    chosen: list = ["User's activity here"]
 
     """--------- MUST FILL!------------"""
 
