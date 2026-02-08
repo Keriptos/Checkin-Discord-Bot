@@ -1,32 +1,21 @@
-#Discord Imports
+# Discord Imports
 import discord 
 from discord import app_commands
 from discord.ext import commands
+from services.sheetService import sheetInitialization
 
-#Google Sheets Imports
+# Google Sheets Imports
 import gspread 
 from gspread import Spreadsheet
 from google.oauth2.service_account import Credentials
 
-#Other Imports
+# Other Imports
 import time
 import datetime
 import os
 import json
 
-sheet = None 
-def sheetInitialization():
-    from dotenv import load_dotenv    
-    global sheet
-    if sheet is None: 
-        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-        creds = Credentials.from_service_account_file("credentials.json", scopes = scopes)
-        client = gspread.authorize(creds)
-
-        load_dotenv(".env")
-        sheetID = os.getenv("googleSheetID")
-        sheet = client.open_by_key(sheetID)
-    return sheet
+SHEET = sheetInitialization()
 
 def loadJSON(file_path):    
     if not os.path.exists(file_path):
@@ -91,8 +80,8 @@ def templateSheetLayout(username: str, format: str): # All index are 0-based
     }
     return data
 
-def logToParticipants(sheet: Spreadsheet, date: datetime.datetime, username: str, activityList: list):
-    worksheet = sheet.worksheet("Participants")
+def logToParticipants(date: datetime.datetime, username: str, activityList: list):
+    worksheet = SHEET.worksheet("Participants")
     participantSheet_id = worksheet.id
 
     nameColumn = worksheet.col_values(4) # 1-indexed
@@ -169,11 +158,11 @@ def logToParticipants(sheet: Spreadsheet, date: datetime.datetime, username: str
             "fields": "userEnteredFormat"
         }
     }
-    sheet.batch_update({"requests": [updateValuesReq, nameFormatReq, activityFormatReq]})
+    SHEET.batch_update({"requests": [updateValuesReq, nameFormatReq, activityFormatReq]})
 
-def tableGeneration(sheet: Spreadsheet, date: datetime, userID: int, users: dict):
+def tableGeneration(date: datetime.datetime, userID: int, users: dict):
     registrationRequest = [] # A list to place all the request later on
-    worksheet = sheet.worksheet("Template")
+    worksheet = SHEET.worksheet("Template")
     templateSheetID = worksheet.id
 
     
@@ -195,7 +184,7 @@ def tableGeneration(sheet: Spreadsheet, date: datetime, userID: int, users: dict
             },
         },
         {
-            "copyPaste": { #Copas label table from template
+            "copyPaste": { # Copas label table from template
                 "source": {
                     "sheetId": templateSheetID, 
                     "startRowIndex": 0,
@@ -316,7 +305,7 @@ def tableGeneration(sheet: Spreadsheet, date: datetime, userID: int, users: dict
                 semesterSelector = 1
             replacements.extend([
                 {
-                    "updateCells": { #Rewrite the quarter placeholder as current semester (D3)
+                    "updateCells": { # Rewrite the quarter placeholder as current semester (D3)
                         "rows": [
                             {"values": [{"userEnteredValue": {"stringValue": f"{semesterTuple[semesterSelector]}"}}]} 
                         ],
@@ -417,7 +406,7 @@ def tableGeneration(sheet: Spreadsheet, date: datetime, userID: int, users: dict
                 else:
                     selector = 3
                 activityRewrites.extend([{
-                    "updateCells": { #Rewrite the activity placeholders
+                    "updateCells": { # Rewrite the activity placeholders
                         "rows": [
                             {"values": [{"userEnteredValue": {"stringValue": f"{userActivities[selector]}"}}]} 
                         ],
@@ -446,7 +435,7 @@ def tableGeneration(sheet: Spreadsheet, date: datetime, userID: int, users: dict
                 else:
                     selector = 5
                 activityRewrites.extend([{
-                    "updateCells": { #Rewrite the activity placeholders
+                    "updateCells": { # Rewrite the activity placeholders
                         "rows": [
                             {"values": [{"userEnteredValue": {"stringValue": f"{userActivities[selector]}"}}]} 
                         ],
@@ -467,6 +456,7 @@ def tableGeneration(sheet: Spreadsheet, date: datetime, userID: int, users: dict
     registrationRequest.extend(tableSetup)
     return registrationRequest
 
+
 class Registration (commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -475,72 +465,83 @@ class Registration (commands.Cog):
     async def on_ready(self):
         print(f"{__name__} is ready!")
 
+
     @app_commands.command(name = "register", description = "Registers a new user onto the sheet")
-    @app_commands.describe(name = "A username to register with. Defaulted to your discord name", activities = "Comma-separated list of a maximum five activities")
-    async def register(self, interaction: discord.Interaction, activities: str, name: str = None):
+    @app_commands.describe(
+        name = "A username to register with. Defaulted to your discord name",
+        activity1 = "Your required first activity",
+        activity2 = "Your second activity",
+        activity3 = "Your third activity",
+        activity4 = "Your fourth activity",
+        activity5 = "Your fifth activity")
+    
+    async def register(
+        self, 
+        interaction: discord.Interaction,        
+        activity1: str,
+        activity2: str = None,
+        activity3: str = None,
+        activity4: str = None,
+        activity5: str = None,
+        name: str = None
+        ):
         print(f"{interaction.user.name} is trying to register")
         commandStartTime = time.perf_counter() # To record how long the command takes to execute
-        STR_userID = str(interaction.user.id)
-
+        userID = str(interaction.user.id)
         usersData = loadJSON('users.json')
         
-        if STR_userID in usersData: 
+        # Validations
+        if userID in usersData:
             print(f"{interaction.user.name} has already registered! Stopping registration process.\n")
-            username = usersData[STR_userID]['username']
+            username = usersData[str(userID)]['username']
             await interaction.response.send_message(f"{interaction.user.mention}, you are already registered as {username}!", ephemeral=True)
             return 
-        
-        #Checks if name is none
-        if name is None or name == "":
-            name = interaction.user.name
-            await interaction.response.send_message("Your username will be your discord username", ephemeral=True)
 
-        #Checks if activity is valid
-        if activities is None:
+        # Checks if activity is valid
+        if activity1 is None:
             await interaction.response.send_message("Please provide at least one activity to register with.", ephemeral=True)
             return
-        else:            
-            activityList = [activity.strip() for activity in activities.split(",")] # Split the activities and make it into a list
-            if len(activityList) > 5:
-                await interaction.response.send_message("Please provide a maximum of five activities to register with.", ephemeral=True)
-                return 
+        
+        
+        await interaction.response.defer()
+        if name is None:
+            name = interaction.user.name
+            await interaction.followup.send("Your username will be your discord username. Syncing...", ephemeral=True)
+
+
+        try:       
+            temp: list = [activity1, activity2, activity3, activity4, activity5]
+            activityList: list = [activity.strip().capitalize() for activity in temp if activity is not None]
             activityList.sort() # Sort for consistency sake
 
             # Write the data to local file
-            usersData[STR_userID] = {} # Make a new dict for the user
-            usersData[STR_userID]['username'] = name 
-            usersData[STR_userID]['activities'] = activityList 
-            usersData[STR_userID]['format'] = activityFormat(activityList) 
-        
-        # Save the data to local file
-        processStartTime = time.perf_counter()
-        saveJSON(usersData, 'users.json')
-        processEndTime = time.perf_counter()
-        print(f"Registered as {name} into the local logs in {processEndTime - processStartTime:.4f} seconds")
-
-
-        await interaction.response.defer()
-        # Try to write to Google Sheet (Slow Process)
-        try: 
             processStartTime = time.perf_counter()
-            sheet = sheetInitialization()   
+            usersData[userID] = {} # Make a new dict for the user
+            usersData[userID]['username'] = name 
+            usersData[userID]['activities'] = activityList 
+            usersData[userID]['format'] = activityFormat(activityList) 
+            saveJSON(usersData, 'users.json')
             processEndTime = time.perf_counter()
-            print(f"Connected to Google sheets in {processEndTime - processStartTime:.4f} seconds")
+            print(f"Registered as {name} into the local logs in {processEndTime - processStartTime:.4f} seconds")
+        except Exception as error:
+            print(f"An error has occured when registering locally! {error}")
 
+        
+        # Try to write to Google Sheet (Slow Process)
+        try:             
             # Write the user onto the Participants worksheet
             processStartTime = time.perf_counter()
-            logToParticipants(sheet, date = datetime.datetime.now(), username = name, activityList = activityList)
+            logToParticipants(datetime.datetime.now(), name, activityList)
             processEndTime = time.perf_counter()
             print(f"Succesfully logged {name} to participants sheet in {processEndTime - processStartTime:.4f} seconds")
 
 
-            #Make new sheet and table for the user 
+            # Make new sheet and table for the user 
             processStartTime = time.perf_counter()
-            sheet.batch_update({"requests": tableGeneration(
-                sheet = sheet, 
-                date = datetime.datetime.now(), 
-                userID = int(STR_userID),
-                users= usersData.get(STR_userID))})
+            SHEET.batch_update({"requests": tableGeneration(                
+                date = datetime.datetime.now(),
+                userID = int(userID),
+                users= usersData.get(userID))})
             processEndTime = time.perf_counter()
             print(f"Added {name}'s sheet in {processEndTime - processStartTime:.4f} seconds")
 
@@ -550,10 +551,11 @@ class Registration (commands.Cog):
             return 
         
         # Print success logs
-        await interaction.followup.send(f"{interaction.user.mention} successfully registered as {name} with activities: {", ".join(activityList)}.")
         print(f"{interaction.user.name} successfully registered as {name} with activities: {', '.join(activityList)}.")
+        await interaction.followup.send(f"{interaction.user.mention} successfully registered as {name} with activities: {", ".join(activityList)}.")
         commandEndTime = time.perf_counter()
         print(f"Registration executed in {commandEndTime - commandStartTime:.4f} seconds\n")
+
 
 async def setup(bot: commands.Bot):
     GUILD_ID = discord.Object(id = 1391372922219659435) #This is my server's ID, and I'm only gonna use it for my server
