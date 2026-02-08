@@ -4,16 +4,12 @@ from discord import app_commands
 from discord.ext import commands
 from bot.services.sheetService import sheetInitialization
 
-# Google Sheets Imports
-import gspread 
-from gspread import Spreadsheet
-from google.oauth2.service_account import Credentials
-
 # Other Imports
 import time
 import datetime
 import os
 import json
+from bot.config import CHECKIN_FILE, SHEET_CACHE, USERS_FILE
 
 SHEET = sheetInitialization()
 
@@ -488,7 +484,7 @@ class Registration (commands.Cog):
         print(f"{interaction.user.name} is trying to register")
         commandStartTime = time.perf_counter() # To record how long the command takes to execute
         userID = str(interaction.user.id)
-        usersData = loadJSON('users.json')
+        usersData = loadJSON(USERS_FILE)
         
         # Validations
         if userID in usersData:
@@ -520,7 +516,7 @@ class Registration (commands.Cog):
             usersData[userID]['username'] = name 
             usersData[userID]['activities'] = activityList 
             usersData[userID]['format'] = activityFormat(activityList) 
-            saveJSON(usersData, 'users.json')
+            saveJSON(usersData, USERS_FILE)
             processEndTime = time.perf_counter()
             print(f"Registered as {name} into the local logs in {processEndTime - processStartTime:.4f} seconds")
         except Exception as error:

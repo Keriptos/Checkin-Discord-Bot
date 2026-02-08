@@ -1,6 +1,6 @@
 # DO NOT LEAK
-bot/.env
-bot/credentials.json
+.env
+secrets/*
 data/users.json
 data/checkintimes.json
 data/credentials.json
