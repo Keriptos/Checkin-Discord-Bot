@@ -31,7 +31,7 @@ async def on_ready():
 
 async def load():    
     print("Syncing cogs...")
-    for filename in os.listdir("./cogs"):
+    for filename in os.listdir("bot/cogs"):
         if filename.endswith(".py"):
             extensionName = f"cogs.{filename[:-3]}" # ":-3" removes 3 characters (.py) starting from behind the filename
             try: 

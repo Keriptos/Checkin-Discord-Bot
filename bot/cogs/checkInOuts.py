@@ -7,7 +7,7 @@ from discord.ext import commands
 from gspread import Worksheet, Spreadsheet
 import gspread
 from google.oauth2.service_account import Credentials
-from services.sheetService import sheetInitialization
+from bot.services.sheetService import sheetInitialization
 
 #Other Imports
 import os

@@ -9,7 +9,7 @@ import json
 import os
 import datetime
 from datetime import timedelta
-from services.sheetService import sheetInitialization
+from bot.services.sheetService import sheetInitialization
 import time # To track how long commands take to execute
 
 SHEET = sheetInitialization()
@@ -468,8 +468,8 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
 def main():    
     """--------- MUST FILL!------------"""
 
-    userID = int("YOUR_USER_ID_HERE")
-    chosen: list = ["User's activity here"]
+    userID = 591939252061732900
+    chosen: list = ["Coding"]
 
     """--------- MUST FILL!------------"""
 
@@ -481,7 +481,7 @@ def main():
             raise LookupError (f"Your chosen list is not the same as your registered activity!")
     
     # Uncomment whichever you want to use    
-    # CheckIn(DTO, chosen)
+    CheckIn(DTO, chosen)
     # CheckOut(DTO, chosen)
 
 

@@ -1,15 +1,17 @@
-#DO NOT LEAK
-.env
-users.json
-checkintimes.json
-credentials.json
-sheetCache.json
+# DO NOT LEAK
+bot/.env
+bot/credentials.json
+data/users.json
+data/checkintimes.json
+data/credentials.json
+data/sheetCache.json
 *.bat
 
-#Unimportant files
+# Unimportant files
 __pycache__/
+*.pyc
+*.pyo
 test.py
-testingground.py
 
-#IDE files 
+# IDE files 
 .vscode/
