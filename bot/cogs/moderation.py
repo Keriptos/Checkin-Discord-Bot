@@ -75,13 +75,13 @@ class Moderation(commands.Cog) :
         else :
             print(f"An error has occured when a user tried to sync commands: {error}\n")
             await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
-
+    
     
     async def cog_autocomplete(self, interaction: discord.Interaction, current: str):
         cogFiles = []
-        for filename in os.listdir("./cogs"):
+        for filename in os.listdir("./bot/cogs"):
             if filename.endswith(".py"):
-                extensionName = f"cogs.{filename[:-3]}" # ":-3" removes 3 characters (.py) starting from behind the filename
+                extensionName = f"bot.cogs.{filename[:-3]}" # ":-3" removes 3 characters (.py) starting from behind the filename
                 cogFiles.append(extensionName)
 
         return [ # This is the template from the discordpy doc. I only changed the variable name. Don't dare touch it
