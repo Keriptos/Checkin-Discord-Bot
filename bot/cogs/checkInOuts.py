@@ -244,9 +244,12 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
 
 
         # Sync to sheets process (Check-in)
-        print("Checking in to sheets")        
+        print("Checking in to sheets")
+        userWorksheetStart = time.perf_counter()
         worksheet = SHEET.worksheet(self.username) # Get the worksheet for the userID        
         worksheetID = worksheet.id
+        userWorksheetEnd = time.perf_counter()
+        print(f"Got {interaction.user.name}'s worksheet in {userWorksheetEnd - userWorksheetStart:.4f} seconds")
 
         # Get year, timeColumn is a column gotten by Sheet API to gather all values from the year and yearDivison column (D column) 
         date = datetime.datetime.now()
@@ -453,30 +456,37 @@ class CheckoutMenu(discord.ui.Select):
         # Chosen validation because user can use menu multiple times
         # Menu only updates when user initiates the command themselves
         timeCheckedIn: dict = loadJSON(CHECKIN_FILE)
-        valid = []
         if self.userID not in timeCheckedIn:
             print(f"{interaction.user.name} tried to check-out when they've just literally checked out before")
             await interaction.response.send_message(f"You've just checked out from all your activities!")
             return
         
-        
-        activityKeys = timeCheckedIn[self.userID]['activities'].keys()
-        for activity in chosen:
-            if activity not in activityKeys:
-                print(f"{interaction.user.name} tried to recheck-out for {activity}")
-                await interaction.followup.send(f"You've already checked out for {activity}!", ephemeral=True)
-            else: 
-                valid.append(activity)
-        chosen = valid
-        print(f"Filtered selection: {chosen}")
+        try :
+            valid = []
+            activityKeys = timeCheckedIn[self.userID]['activities'].keys()
+            for activity in chosen:
+                if activity not in activityKeys:
+                    print(f"{interaction.user.name} tried to recheck-out for {activity}")
+                    await interaction.followup.send(f"You've already checked out for {activity}!", ephemeral=True)
+                else: 
+                    valid.append(activity)
 
-
+            if not valid:
+                chosen = valid
+                print(f"Filtered selection: {chosen}")        
+        except Exception as error:
+            print(f"Something happened when filtering chosen activities, {error}")
+    
+    
         await interaction.response.defer()
 
         # Syncing to Sheets (Check-out)
-        print("Checking out from sheets")        
+        print("Checking out from sheets")
+        userWorksheetStart = time.perf_counter()
         worksheet = SHEET.worksheet(self.username)
         worksheetID = worksheet.id 
+        userWorksheetEnd = time.perf_counter()
+        print(f"Got {interaction.user.name}'s worksheet in {userWorksheetEnd - userWorksheetStart:.4f} seconds")
         
         timeCheckedOut = datetime.datetime.now()                
         sheetCache = loadJSON(SHEET_CACHE)
@@ -636,15 +646,19 @@ class CheckInOuts(commands.Cog):
     @app_commands.command(name = "checkinmenu", description = "Checks you in to the google sheet")
     async def checkinMenu(self, interaction: discord.Interaction):
         userID = str(interaction.user.id)        
-        usersData = loadJSON(USERS_FILE)        
+        usersData = loadJSON(USERS_FILE)
+        timeCheckedIn = loadJSON(CHECKIN_FILE)     
         
-
+        
         print(f"{interaction.user.name} is trying to check in")
         if userID not in usersData: # Check if user is registered
             print(f"{interaction.user.name} is not registered\n")
             await interaction.response.send_message("You are not registered. Please register first!", ephemeral=True)
-            return        
-        
+            return
+        if len(usersData[userID]['activities']) == 1 and userID in timeCheckedIn:
+            print(f"{interaction.user.name} has already checked in!\n")
+            await interaction.response.send_message("You've alreaady checked in!", ephemeral=True)
+            return 
         try:
             await interaction.response.send_message("Please select your activity to check-in:", view=CheckinMenuView(userID))
         except Exception as error:
