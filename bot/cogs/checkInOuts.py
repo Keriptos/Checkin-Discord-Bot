@@ -5,7 +5,7 @@ from discord.ext import commands
 
 # Google Sheets Imports
 from gspread import Worksheet, Spreadsheet
-from bot.services.sheetService import sheetInitialization
+from bot.services.sheetService import sheetManager
 
 # Other Imports
 import os
@@ -14,7 +14,8 @@ import datetime; from datetime import timedelta
 import time 
 from bot.config import CHECKIN_FILE, USERS_FILE, SHEET_CACHE
 
-SHEET = sheetInitialization()
+SHEET = sheetManager.get_sheet_client()
+WORKSHEETS = sheetManager.load_worksheets()
 
 def lockedInTime(elapsedTime: datetime.timedelta):
     # Only handles the same day time difference. User is expected to check-out at the same day
@@ -162,9 +163,9 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
         self.userFormat: str = self.usersData[userID]['format']    
 
         # Basically make a list of activities from user's registered activitiies
-        self.userActivities = self.usersData[userID]['activities']
+        self.userActivities: list = self.usersData[userID]['activities']     
 
-        activityOptions = [] #To store activities based on userID
+        activityOptions = [] # To store activities based on userID
         for activity in self.userActivities:
             activityOptions.append(
                 discord.SelectOption(
@@ -244,12 +245,10 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
 
 
         # Sync to sheets process (Check-in)
-        print("Checking in to sheets")
-        userWorksheetStart = time.perf_counter()
-        worksheet = SHEET.worksheet(self.username) # Get the worksheet for the userID        
-        worksheetID = worksheet.id
-        userWorksheetEnd = time.perf_counter()
-        print(f"Got {interaction.user.name}'s worksheet in {userWorksheetEnd - userWorksheetStart:.4f} seconds")
+        print("Checking in to sheets")        
+        worksheet = WORKSHEETS[self.username]
+        worksheetID = worksheet.id        
+        print(f"Got {interaction.user.name}'s worksheet")
 
         # Get year, timeColumn is a column gotten by Sheet API to gather all values from the year and yearDivison column (D column) 
         date = datetime.datetime.now()
@@ -258,7 +257,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
         # Set up check-in cache
         try:
             startCache = time.perf_counter()
-            sheetCache = loadJSON(SHEET_CACHE)            
+            sheetCache = loadJSON(SHEET_CACHE)       
             if self.userID not in sheetCache:
                 sheetCache[self.userID] = {}
                 sheetCache[self.userID]['username'] = self.username
@@ -421,7 +420,8 @@ class CheckoutMenu(discord.ui.Select):
 
         # Basically make a list out of the activity keys from checkintimes.json UNDER their usernames
         checkinsFile = loadJSON(CHECKIN_FILE)
-        self.checkedInActivities = list(dict.fromkeys(checkinsFile[self.userID]['activities'].keys()))
+        self.checkedInActivities: list = sorted(dict.fromkeys(checkinsFile[self.userID]['activities'].keys()))
+        
 
         options = []
         for activity in self.checkedInActivities:
@@ -482,11 +482,9 @@ class CheckoutMenu(discord.ui.Select):
 
         # Syncing to Sheets (Check-out)
         print("Checking out from sheets")
-        userWorksheetStart = time.perf_counter()
-        worksheet = SHEET.worksheet(self.username)
-        worksheetID = worksheet.id 
-        userWorksheetEnd = time.perf_counter()
-        print(f"Got {interaction.user.name}'s worksheet in {userWorksheetEnd - userWorksheetStart:.4f} seconds")
+        worksheet = WORKSHEETS[self.username]
+        worksheetID = worksheet.id
+        print(f"Got {interaction.user.name}'s worksheet")
         
         timeCheckedOut = datetime.datetime.now()                
         sheetCache = loadJSON(SHEET_CACHE)

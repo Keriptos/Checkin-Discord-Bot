@@ -2,7 +2,7 @@
 import discord 
 from discord import app_commands
 from discord.ext import commands
-from bot.services.sheetService import sheetInitialization
+from bot.services.sheetService import sheetManager
 
 # Other Imports
 import time
@@ -11,7 +11,7 @@ import os
 import json
 from bot.config import CHECKIN_FILE, SHEET_CACHE, USERS_FILE
 
-SHEET = sheetInitialization()
+SHEET = sheetManager.get_sheet_client()
 
 def loadJSON(file_path):    
     if not os.path.exists(file_path):
@@ -507,8 +507,7 @@ class Registration (commands.Cog):
 
         try:       
             temp: list = [activity1, activity2, activity3, activity4, activity5]
-            activityList: list = [activity.strip().capitalize() for activity in temp if activity is not None]
-            activityList.sort() # Sort for consistency sake
+            activityList: list = sorted([activity.strip().capitalize() for activity in temp if activity is not None])            
 
             # Write the data to local file
             processStartTime = time.perf_counter()
