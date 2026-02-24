@@ -9,7 +9,7 @@ import asyncio
 from dotenv import load_dotenv
 from bot.config import DISCORD_TOKEN
 
-bot = commands.Bot(command_prefix = None,  intents = discord.Intents.all()) # command_prefix is not needed for app commands
+bot = commands.Bot(command_prefix = None,  intents = discord.Intents.default()) # command_prefix is not needed for app commands
 
 @bot.event
 async def on_ready():    
@@ -28,7 +28,7 @@ async def on_ready():
 
 async def load():    
     print("Syncing cogs...")
-    for filename in os.listdir("bot/cogs/"):
+    for filename in os.listdir("./bot/cogs/"):
         if filename.endswith(".py") and not filename.startswith("_"):
             extensionName = f"bot.cogs.{filename[:-3]}" # ":-3" removes 3 characters (.py) starting from behind the filename
             try: 
