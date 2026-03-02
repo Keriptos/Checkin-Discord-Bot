@@ -5,7 +5,7 @@ from discord.ext import commands
 
 # Google Sheets Imports
 from gspread import Worksheet, Spreadsheet
-from bot.services.sheetService import sheetManager
+from bot.services.sheetService import SheetService
 
 # Other Imports
 import os
@@ -14,6 +14,7 @@ import datetime; from datetime import timedelta
 import time 
 from bot.config import CHECKIN_FILE, USERS_FILE, SHEET_CACHE
 
+sheetManager = SheetService()
 SHEET = sheetManager.get_sheet_client()
 WORKSHEETS = sheetManager.load_worksheets()
 
@@ -66,7 +67,7 @@ def setYearDivisionFormat(userFormat: str, date: datetime.datetime):
             yearDivToFind = "Q4"    
     return yearDivToFind
 
-def getYearCell(userFormat: str, worksheet: Worksheet, date: datetime.datetime):
+def getYearCell(userFormat: str, username: str, date: datetime.datetime):
     processStartTime = time.perf_counter()
     if userFormat == "Yearly": 
         yearCell = { # By default, it's D3 --> (1-indexed)
@@ -78,7 +79,8 @@ def getYearCell(userFormat: str, worksheet: Worksheet, date: datetime.datetime):
             "row": 1,
             "col": 4 
         }
-    timeColumn = worksheet.col_values(4) # Year location is fixed, always at D column
+    timeColumn = sheetManager.get_year_column(username)
+    # timeColumn = worksheet.col_values(4) # Year location is fixed, always at D column
     yearRow = yearCell["row"]
     
     found = False   
@@ -252,7 +254,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
 
         # Get year, timeColumn is a column gotten by Sheet API to gather all values from the year and yearDivison column (D column) 
         date = datetime.datetime.now()
-        yearCell, timeColumn = getYearCell(self.userFormat, worksheet, date)        
+        yearCell, timeColumn = getYearCell(self.userFormat, self.username, date)
 
         # Set up check-in cache
         try:
