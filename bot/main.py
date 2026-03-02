@@ -7,7 +7,7 @@ from discord.ext import commands
 import os
 import asyncio
 from dotenv import load_dotenv
-from bot.config import DISCORD_TOKEN
+from bot.config_builder import DISCORD_TOKEN
 
 bot = commands.Bot(command_prefix = None,  intents = discord.Intents.default()) # command_prefix is not needed for app commands
 

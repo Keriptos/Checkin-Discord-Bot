@@ -9,7 +9,7 @@ import time
 import datetime
 import os
 import json
-from bot.config import CHECKIN_FILE, SHEET_CACHE, USERS_FILE
+from bot.config_builder import CHECKIN_FILE, SHEET_CACHE, USERS_FILE
 
 sheetManager = SheetService()
 SHEET = sheetManager.get_sheet_client()

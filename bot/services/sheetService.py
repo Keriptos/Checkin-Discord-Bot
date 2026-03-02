@@ -2,7 +2,7 @@ import time
 import gspread
 from gspread import Worksheet, Spreadsheet 
 from google.oauth2.service_account import Credentials
-from bot.config import GOOGLE_SHEET_ID, CREDS_PATH
+from bot.config_builder import GOOGLE_SHEET_ID, CREDS_PATH
 
 class SheetService:
     def __init__(self):

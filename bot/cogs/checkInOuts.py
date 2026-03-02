@@ -12,7 +12,7 @@ import os
 import json
 import datetime; from datetime import timedelta
 import time 
-from bot.config import CHECKIN_FILE, USERS_FILE, SHEET_CACHE
+from bot.config_builder import CHECKIN_FILE, USERS_FILE, SHEET_CACHE
 
 sheetManager = SheetService()
 SHEET = sheetManager.get_sheet_client()
