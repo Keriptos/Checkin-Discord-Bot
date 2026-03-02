@@ -426,11 +426,7 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
     for activity in chosen:
         userTimeCheckedIn = datetime.datetime.fromisoformat(timeCheckedIn[DTO.userID]["activities"][activity])
         elapsedTime: timedelta = timeCheckedOut - userTimeCheckedIn
-        print(f"{DTO.username}'s {activity} elapsed time: {lockedInTime(elapsedTime)}")
-        if len(chosen) == 1:
-            print(f"{DTO.username} has checked out from the sheet for {activity} activity! Locked in for {lockedInTime(elapsedTime)}")
-        else:
-            print(f"{DTO.username} has checked out from the sheet for {activity} activities! Locked in for {lockedInTime(elapsedTime)}")
+        print(f"{DTO.username}'s {activity} elapsed time: {lockedInTime(elapsedTime)}")        
 
     # If user chooses to check out from all activities, remove the entire user's dict from the file
     checkedInActivities: list = timeCheckedIn[DTO.userID]["activities"]
@@ -451,7 +447,7 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
         else: 
             for activity in chosen:
                 print(f"Activity: {activity} checkinCell: {sheetCache[DTO.userID]['activities'][activity]['checkinCell']}")
-                del sheetCache[DTO.userID][activity]
+                del sheetCache[DTO.userID]['activities'][activity]
         
             # Activity check in sheetCache to see if user have checked out from all their activities
             hasFullyCheckedOut = True
@@ -476,8 +472,8 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
 def main():    
     """--------- MUST FILL!------------"""
 
-    userID = 591939252061732900
-    chosen: list = ["Coding"]
+    userID = 880614022939041864
+    chosen: list = ["Animating", "Art Study"]
 
     """--------- MUST FILL!------------"""
 
