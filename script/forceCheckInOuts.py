@@ -9,10 +9,12 @@ import json
 import os
 import datetime
 from datetime import timedelta
-from bot.services.sheetService import sheetInitialization
+from bot.config import CHECKIN_FILE, USERS_FILE, SHEET_CACHE
+from bot.services.sheetService import SheetService
 import time # To track how long commands take to execute
 
-SHEET = sheetInitialization()
+sheetManager = SheetService()
+SHEET = sheetManager.get_sheet_client()
 
 def lockedInTime(elapsedTime: timedelta):
     hours = elapsedTime.seconds // 3600
@@ -177,7 +179,7 @@ def getYearDivision(DTO: YearDivisionDTO):
 def getMonthCell(userID: str, date: datetime.datetime, yearCell: dict, yearDivCell: dict | None):
     # All values are 1 - indexed
     monthStart = time.perf_counter()
-    usersData = loadJSON('users.json')
+    usersData = loadJSON(USERS_FILE)
     
     userFormat = usersData[userID]['format']
     if userFormat == "Yearly":
@@ -198,35 +200,40 @@ def getMonthCell(userID: str, date: datetime.datetime, yearCell: dict, yearDivCe
 class CheckInOutsDTO():
     def __init__(self, userID: int):
         self.userID = str(userID)
-        self.usersData = loadJSON('users.json')
+        self.usersData = loadJSON(USERS_FILE)
         user = self.usersData[self.userID]
         self.username = user['username']
         self.userFormat = user['format']
         self.userActivities = user['activities']
 
 # Update to sheets (Check-in)
-def CheckIn(DTO: CheckInOutsDTO, chosen: list):
+def CheckIn(DTO: CheckInOutsDTO, chosen: list):        
     commandStartTime = time.perf_counter()
     
     # Local check-in
     start = time.perf_counter()
-    timeCheckedIn = loadJSON('checkintimes.json')
+    timeCheckedIn = loadJSON(CHECKIN_FILE)
 
-    # If user hasn't checked in, make an empty dict for user
-    if DTO.username not in timeCheckedIn:
-        timeCheckedIn[DTO.username] = {}
+    # If user has checked in, stop here
+    if DTO.userID in timeCheckedIn:
+        print("You've already checked in! Perhaps you wanted to check-out?")
+        return
+    
+    # Set up the dict for the user
+    timeCheckedIn[DTO.userID] = {}
+    timeCheckedIn[DTO.userID]["username"] = DTO.username
+    timeCheckedIn[DTO.userID]["activities"] = {}
 
     for activity in chosen:            
         # Username and activity = keys, time as the value into dictionary
-        timeCheckedIn[DTO.username][activity] = datetime.datetime.now().isoformat()            
-    saveJSON(timeCheckedIn, 'checkintimes.json')
+        timeCheckedIn[DTO.userID]["activities"][activity] = datetime.datetime.now().isoformat()
+    saveJSON(timeCheckedIn, CHECKIN_FILE)
     end = time.perf_counter()
     print(f"Succesfully saved timestamp locally in {end - start:.8f} seconds")
 
 
-    print("Going to sheets")
-    
-    worksheet = SHEET.worksheet(DTO.username) # Get the worksheet for the userID
+    print("Going to sheets")    
+    worksheet = SHEET.worksheet(DTO.username)
     worksheetID = worksheet.id
 
     date = datetime.datetime.now() # Get the value from userID, which is the time checked in for that specific user
@@ -242,7 +249,7 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
     # Set-up cache when checking in
     try:
         startCache = time.perf_counter()
-        sheetCache = loadJSON('sheetCache.json')
+        sheetCache = loadJSON(SHEET_CACHE)
         if DTO.userID not in sheetCache:
             sheetCache[DTO.userID] = {}
             sheetCache[DTO.userID]['username'] = DTO.username
@@ -250,7 +257,7 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
             for activity in chosen:
                 sheetCache[DTO.userID]['activities'][activity] = {}
                 sheetCache[DTO.userID]['activities'][activity]['checkinCell'] = {}
-        saveJSON(sheetCache, 'sheetCache.json')
+        saveJSON(sheetCache, SHEET_CACHE)
         endCache = time.perf_counter()
         print(f"Sucessfully set up {DTO.username}'s check-in cache in {endCache - startCache:.8f} seconds")
     except Exception as error:
@@ -269,7 +276,7 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
             sheetCache[DTO.userID]['activities'][activity]['checkinCell']['row']= rowToFind 
             sheetCache[DTO.userID]['activities'][activity]['checkinCell']['col']= columnToFind
         rowColEnd = time.perf_counter()
-        saveJSON(sheetCache, 'sheetCache.json')
+        saveJSON(sheetCache, SHEET_CACHE)
         print(f"Sucessfully wrote {DTO.username}'s checkinCell into sheetCache in {rowColEnd - rowColStart:.8f} seconds")
 
         # Request section
@@ -307,7 +314,7 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
 
 
         rowToFind = monthCell["row"] + date.day # The first day is 2 rows after monthRow. (0-indexed)
-        sheetCache = loadJSON('sheetCache.json')
+        sheetCache = loadJSON(SHEET_CACHE)
         sheetCache[DTO.userID]['activities'][activity]['checkinCell']['row'] = rowToFind
 
         # Map the activities, offset it based on monthCell, and save it to sheetCache
@@ -324,7 +331,7 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
                 sheetCache[DTO.userID]['activities'][activity]['checkinCell']['col'] = offset
             else:
                 raise ValueError(f"Activity '{activity}' not found")
-        saveJSON(sheetCache, 'sheetCache.json')
+        saveJSON(sheetCache, SHEET_CACHE)
             
         # Request section        
         compiledRequests = [] # To store all requests for batch update for later
@@ -366,16 +373,18 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
         
 def CheckOut(DTO: CheckInOutsDTO, chosen: list):
     commandStartTime = time.perf_counter()
+
+    timeCheckedIn = loadJSON(CHECKIN_FILE)
+    timeCheckedOut = datetime.datetime.now()
+    if DTO.userID not in timeCheckedIn:
+        print("You haven't checked in! You should check-in first!")
+        return
     
     worksheet = SHEET.worksheet(DTO.username)
     worksheetID = worksheet.id
 
-    timeCheckedIn = loadJSON('checkintimes.json')    
-    timeCheckedOut = datetime.datetime.now()
-           
-
     # Get rowToFind and columnToFind from sheetCache
-    sheetCache: dict = loadJSON('sheetCache.json')
+    sheetCache: dict = loadJSON(SHEET_CACHE)
     compiledRequests = []
     for activity in chosen:
         rowToFind = sheetCache[DTO.userID]['activities'][activity]['checkinCell']['row']
@@ -415,7 +424,7 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
 
     # Response message
     for activity in chosen:
-        userTimeCheckedIn = datetime.datetime.fromisoformat(timeCheckedIn[DTO.username][activity]) 
+        userTimeCheckedIn = datetime.datetime.fromisoformat(timeCheckedIn[DTO.userID]["activities"][activity])
         elapsedTime: timedelta = timeCheckedOut - userTimeCheckedIn
         print(f"{DTO.username}'s {activity} elapsed time: {lockedInTime(elapsedTime)}")
         if len(chosen) == 1:
@@ -423,14 +432,14 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
         else:
             print(f"{DTO.username} has checked out from the sheet for {activity} activities! Locked in for {lockedInTime(elapsedTime)}")
 
-    # If user chooses to check out from all activities, remove the entire username dict from the file
-    if len(chosen) == len(chosen): 
-        timeCheckedIn.pop(DTO.username)
-    
+    # If user chooses to check out from all activities, remove the entire user's dict from the file
+    checkedInActivities: list = timeCheckedIn[DTO.userID]["activities"]
+    if len(chosen) == len(checkedInActivities):
+        del timeCheckedIn[DTO.userID]    
     else: # Otherwise, remove the specific activity key from the user's dict
         for activity in chosen: 
-            timeCheckedIn[DTO.username].pop(activity)            
-    saveJSON(timeCheckedIn, 'checkintimes.json') # Save the updated dictionary back to the JSON file
+            timeCheckedIn[DTO.userID]["activities"].pop(activity)
+    saveJSON(timeCheckedIn, CHECKIN_FILE) # Save the updated dictionary back to the JSON file
     print(f"{DTO.username} checked out locally for {chosen}")
 
     # Remove check-in cache
@@ -439,7 +448,6 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
         # Delete activty dict from user   
         if DTO.userFormat == 'Yearly':
             del sheetCache[DTO.userID]
-
         else: 
             for activity in chosen:
                 print(f"Activity: {activity} checkinCell: {sheetCache[DTO.userID]['activities'][activity]['checkinCell']}")
@@ -458,7 +466,7 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
                 print(f"Succesfully deleted {DTO.username}'s {chosen} check-in cache in {endCheckinCache - startCheckinCache:8f} seconds")                
             else:
                 print(f"{DTO.username} is not fully checked-out yet")
-        saveJSON(sheetCache, 'sheetCache.json')        
+        saveJSON(sheetCache, SHEET_CACHE)
     except Exception as error:
         print(f"An error has occured when deleting user's dict from sheet_cache {error}")
     commandEndTime = time.perf_counter()
@@ -481,8 +489,8 @@ def main():
             raise LookupError (f"Your chosen list is not the same as your registered activity!")
     
     # Uncomment whichever you want to use    
-    CheckIn(DTO, chosen)
-    # CheckOut(DTO, chosen)
+    # CheckIn(DTO, chosen)
+    CheckOut(DTO, chosen)
 
 
 if __name__ == "__main__" :
