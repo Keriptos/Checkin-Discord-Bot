@@ -5,7 +5,7 @@ from discord.ext import commands
 
 # Google Sheets Imports
 from gspread import Worksheet, Spreadsheet
-from bot.services.sheetService import SheetService
+from bot.services.sheetService import sheetManager
 
 # Other Imports
 import os
@@ -14,9 +14,8 @@ import datetime; from datetime import timedelta
 import time 
 from bot.config_builder import CHECKIN_FILE, USERS_FILE, SHEET_CACHE
 
-sheetManager = SheetService()
 SHEET = sheetManager.get_sheet_client()
-WORKSHEETS = sheetManager.load_worksheets()
+
 
 def lockedInTime(elapsedTime: datetime.timedelta):
     # Only handles the same day time difference. User is expected to check-out at the same day
@@ -247,8 +246,8 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
 
 
         # Sync to sheets process (Check-in)
-        print("Checking in to sheets")        
-        worksheet = WORKSHEETS[self.username]
+        print("Checking in to sheets")  
+        worksheet = sheetManager.get_worksheet(self.username)
         worksheetID = worksheet.id        
         print(f"Got {interaction.user.name}'s worksheet")
 
@@ -484,7 +483,7 @@ class CheckoutMenu(discord.ui.Select):
 
         # Syncing to Sheets (Check-out)
         print("Checking out from sheets")
-        worksheet = WORKSHEETS[self.username]
+        worksheet = sheetManager.get_worksheet(self.username)
         worksheetID = worksheet.id
         print(f"Got {interaction.user.name}'s worksheet")
         

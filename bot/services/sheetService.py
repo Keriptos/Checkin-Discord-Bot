@@ -20,28 +20,31 @@ class SheetService:
             commandEndTime = time.perf_counter()
             print(f"Initialized sheet client in {commandEndTime - commandStartTime:.4f} seconds")
         return self.sheet
-
-    def load_worksheets(self) -> dict[str, Worksheet]:
-        if not self.worksheets:
-            start = time.perf_counter()
-            self.sheet = self.get_sheet_client()
-            worksheets = self.sheet.worksheets()            
-            for worksheet in worksheets:
-                self.worksheets[worksheet.title] = worksheet
-            end = time.perf_counter()
-            print(f"Loaded all worksheets in {end-start:.8f} seconds")
+        
+    def force_load_worksheets(self) -> dict[str, Worksheet]:
+        start = time.perf_counter()
+        self.sheet = self.get_sheet_client()
+        worksheets = self.sheet.worksheets()
+        for worksheet in worksheets:
+            self.worksheets[worksheet.title] = worksheet
+        end = time.perf_counter()
+        print(f"Loaded all worksheets in {end-start:.8f} seconds")
         return self.worksheets
-
+    
     def get_worksheet(self, username) -> Worksheet:
-        self.load_worksheets()
-        try:
+        if username not in self.worksheets: # Fetch all the users before trying to return their worksheet
+            self.worksheets = self.force_load_worksheets()
+        
+        # If it reached the exception, the user actually didn't register
+        try:            
             return self.worksheets[username]
         except KeyError:
             raise gspread.WorksheetNotFound(f"{username}'s worksheet not found. User should register first!")
         
+
     def load_year_columns(self, username) -> list[int | str | float | None]:
-        if not self.year_column_cache:                
-            worksheet = self.get_worksheet(username)              
+        if not self.year_column_cache:  
+            worksheet = self.get_worksheet(username)
             start = time.perf_counter()
             self.year_column_cache[username] = worksheet.col_values(4)
             end = time.perf_counter()
@@ -53,3 +56,8 @@ class SheetService:
             print(f"Didn't found {username} in year column cache. Setting up cache...")
             self.load_year_columns(username)
         return self.year_column_cache[username]
+
+
+# To prevent making another class instance in any of the logic files, 
+# it's better to import the variable from this module
+sheetManager = SheetService() 

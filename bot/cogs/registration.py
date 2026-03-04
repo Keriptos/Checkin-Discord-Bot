@@ -2,7 +2,7 @@
 import discord 
 from discord import app_commands
 from discord.ext import commands
-from bot.services.sheetService import SheetService
+from bot.services.sheetService import sheetManager
 
 # Other Imports
 import time
@@ -11,7 +11,6 @@ import os
 import json
 from bot.config_builder import CHECKIN_FILE, SHEET_CACHE, USERS_FILE
 
-sheetManager = SheetService()
 SHEET = sheetManager.get_sheet_client()
 
 def loadJSON(file_path):    
