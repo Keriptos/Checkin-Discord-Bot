@@ -6,17 +6,17 @@ from discord.ext import commands
 # Other Imports
 import os
 import asyncio
-from dotenv import load_dotenv
+from bot.services.sheetService import sheetManager
 from bot.config_builder import DISCORD_TOKEN
 
 bot = commands.Bot(command_prefix = None,  intents = discord.Intents.default()) # command_prefix is not needed for app commands
 
 @bot.event
-async def on_ready():    
+async def on_ready():
     print("Bot Ready!") 
     
     # Sync commands to the bot
-    try :
+    try :        
         GUILD_ID = discord.Object(id = 1391372922219659435) #This is my server's ID, and I'm only gonna use it for my server
         syncedCommands = await bot.tree.sync(guild= GUILD_ID) #It'll return a list of commands that had been synced
         print(f"Synced {len(syncedCommands)} commands.\n")
@@ -24,7 +24,9 @@ async def on_ready():
     except Exception as error:
         print("An error with syncing app commands has occured : ", error)
     
-
+async def sheet_initializations():
+    sheetManager.get_sheet_client
+    sheetManager.force_load_worksheets()
 
 async def load():    
     print("Syncing cogs...")
@@ -39,6 +41,7 @@ async def load():
     
 async def main():
     async with bot:
+        await sheet_initializations()
         await load()
         await bot.start(DISCORD_TOKEN)
 
