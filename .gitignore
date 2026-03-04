@@ -1,5 +1,6 @@
 # DO NOT LEAK
 .env
+config.ini
 secrets/*
 data/users.json
 data/checkintimes.json
