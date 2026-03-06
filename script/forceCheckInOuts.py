@@ -1,8 +1,7 @@
-#Google Sheets Imports
-import gspread 
-from gspread import Worksheet, Spreadsheet
-from google.oauth2.service_account import Credentials
+#Google Sheets Related Imports
+from gspread import Worksheet
 from gspread_formatting import *
+from bot.services.sheetService import SheetService
 
 #Other Imports
 import json
@@ -10,7 +9,6 @@ import os
 import datetime
 from datetime import timedelta
 from bot.config_builder import CHECKIN_FILE, USERS_FILE, SHEET_CACHE
-from bot.services.sheetService import SheetService
 import time # To track how long commands take to execute
 
 sheetManager = SheetService()

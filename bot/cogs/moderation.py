@@ -6,8 +6,8 @@ from discord.ext import commands
 #Other Imports
 import os
 import time
+from bot.config_builder import GUILD_ID
 
-GUILD_ID = discord.Object(id = 1391372922219659435) #This is my server's ID, and I'm only gonna use it for my server
 class Moderation(commands.Cog) :
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -142,4 +142,5 @@ class Moderation(commands.Cog) :
 
 
 async def setup(bot: commands.Bot):
-    await bot.add_cog(Moderation(bot), guild=GUILD_ID)
+    _GUILD_ID = discord.Object(id = GUILD_ID)
+    await bot.add_cog(Moderation(bot), guild=_GUILD_ID)

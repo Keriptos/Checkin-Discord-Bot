@@ -3,8 +3,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-# Google Sheets Imports
-from gspread import Worksheet, Spreadsheet
+# Google Sheets Related Imports
 from bot.services.sheetService import sheetManager
 
 # Other Imports
@@ -12,7 +11,9 @@ import os
 import json
 import datetime; from datetime import timedelta
 import time 
-from bot.config_builder import CHECKIN_FILE, USERS_FILE, SHEET_CACHE
+from bot.config_builder import CHECKIN_FILE, USERS_FILE, SHEET_CACHE, GUILD_ID
+
+
 
 SHEET = sheetManager.get_sheet_client()
 
@@ -691,5 +692,5 @@ class CheckInOuts(commands.Cog):
 
     
 async def setup(bot: commands.Bot):
-    GUILD_ID = discord.Object(id = 1391372922219659435) # This is my server's ID, and I'm only gonna use it for my server
-    await bot.add_cog(CheckInOuts(bot), guild = GUILD_ID)
+    _GUILD_ID = discord.Object(id = GUILD_ID)
+    await bot.add_cog(CheckInOuts(bot), guild = _GUILD_ID)

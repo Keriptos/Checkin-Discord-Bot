@@ -9,7 +9,7 @@ import time
 import datetime
 import os
 import json
-from bot.config_builder import CHECKIN_FILE, SHEET_CACHE, USERS_FILE
+from bot.config_builder import USERS_FILE, GUILD_ID
 
 SHEET = sheetManager.get_sheet_client()
 
@@ -76,8 +76,8 @@ def templateSheetLayout(username: str, format: str): # All index are 0-based
     }
     return data
 
-def logToParticipants(date: datetime.datetime, username: str, activityList: list):
-    worksheet = SHEET.worksheet("Participants")
+def logToParticipants(date: datetime.datetime, username: str, activityList: list):    
+    worksheet = sheetManager.get_worksheet("Participants")
     participantSheet_id = worksheet.id
 
     nameColumn = worksheet.col_values(4) # 1-indexed
@@ -157,8 +157,8 @@ def logToParticipants(date: datetime.datetime, username: str, activityList: list
     SHEET.batch_update({"requests": [updateValuesReq, nameFormatReq, activityFormatReq]})
 
 def tableGeneration(date: datetime.datetime, userID: int, users: dict):
-    registrationRequest = [] # A list to place all the request later on
-    worksheet = SHEET.worksheet("Template")
+    registrationRequest = [] # A list to place all the request later on    
+    worksheet = sheetManager.get_sheet_client("Template")
     templateSheetID = worksheet.id
 
     
@@ -261,7 +261,7 @@ def tableGeneration(date: datetime.datetime, userID: int, users: dict):
         # Rewrite the common placeholders
         replacements.extend([
             {
-                "updateCells": { #Rewrite the year placeholder as today's year (D3)
+                "updateCells": { # Rewrite the year placeholder as today's year (D3)
                     "rows": [
                         {"values": [{"userEnteredValue": {"numberValue": date.year}}]} 
                     ],
@@ -276,7 +276,7 @@ def tableGeneration(date: datetime.datetime, userID: int, users: dict):
                 },
             },
             {
-                "updateCells": { #Rewrite the username placeholder as user's username (E1)
+                "updateCells": { # Rewrite the username placeholder as user's username (E1)
                     "rows": [
                         {"values": [{"userEnteredValue": {"stringValue": f"{username}"}}]} 
                     ],
@@ -552,6 +552,6 @@ class Registration (commands.Cog):
         print(f"Registration executed in {commandEndTime - commandStartTime:.4f} seconds\n")
 
 
-async def setup(bot: commands.Bot):
-    GUILD_ID = discord.Object(id = 1391372922219659435) #This is my server's ID, and I'm only gonna use it for my server
-    await bot.add_cog(Registration(bot), guild = GUILD_ID)
+async def setup(bot: commands.Bot):    
+    _GUILD_ID = discord.Object(id = GUILD_ID)
+    await bot.add_cog(Registration(bot), guild = _GUILD_ID)

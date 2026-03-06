@@ -1,13 +1,12 @@
 #Discord Imports
 import discord
-from discord import app_commands
 from discord.ext import commands
 
 # Other Imports
 import os
 import asyncio
 from bot.services.sheetService import sheetManager
-from bot.config_builder import DISCORD_TOKEN
+from bot.config_builder import DISCORD_TOKEN, GUILD_ID
 
 bot = commands.Bot(command_prefix = None,  intents = discord.Intents.default()) # command_prefix is not needed for app commands
 
@@ -15,10 +14,11 @@ bot = commands.Bot(command_prefix = None,  intents = discord.Intents.default()) 
 async def on_ready():
     print("Bot Ready!") 
     
+    
     # Sync commands to the bot
     try :        
-        GUILD_ID = discord.Object(id = 1391372922219659435) #This is my server's ID, and I'm only gonna use it for my server
-        syncedCommands = await bot.tree.sync(guild= GUILD_ID) #It'll return a list of commands that had been synced
+        _GUILD_ID = discord.Object(id = GUILD_ID) # This is my server's ID, and I'm only gonna use it for my server
+        syncedCommands = await bot.tree.sync(guild= _GUILD_ID) # It'll return a list of commands that had been synced
         print(f"Synced {len(syncedCommands)} commands.\n")
         await bot.get_channel(1393987877599445115).send(f"@here Bot is online!") # Announce in the channel(check-ins-out) that bot is online
     except Exception as error:
