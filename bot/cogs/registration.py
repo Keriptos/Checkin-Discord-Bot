@@ -158,7 +158,7 @@ def logToParticipants(date: datetime.datetime, username: str, activityList: list
 
 def tableGeneration(date: datetime.datetime, userID: int, users: dict):
     registrationRequest = [] # A list to place all the request later on    
-    worksheet = sheetManager.get_sheet_client("Template")
+    worksheet = sheetManager.get_worksheet("Template")
     templateSheetID = worksheet.id
 
     
@@ -551,6 +551,41 @@ class Registration (commands.Cog):
         commandEndTime = time.perf_counter()
         print(f"Registration executed in {commandEndTime - commandStartTime:.4f} seconds\n")
 
+    @app_commands.command(name="signout", description="Signs out from the sheet. Will delete your sheet data upon initiating")
+    async def signout(self, interaction: discord.Interaction):
+        command_start_time = time.perf_counter()
+        print(f"{interaction.user.name} is trying to sign-out")
+
+        userID = str(interaction.user.id)
+        usersData: dict = loadJSON(USERS_FILE)
+        # Validations
+        if userID not in usersData:
+            print(f"{interaction.user.name} tried to sign-out but hasn't registered")
+            await interaction.response.send_message(f"Can't sign out if you haven't registered!", ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+        try:            
+            local_deletion_start = time.perf_counter()
+            registered_name: str = usersData[userID]["username"]
+            del usersData[userID]
+            saveJSON(usersData, USERS_FILE)
+            local_deletion_end = time.perf_counter()
+            print(f"Local deletion finished in {local_deletion_end - local_deletion_start:.8f} seconds")
+
+            sheet_deletion_start = time.perf_counter()
+            SHEET.del_worksheet(sheetManager.get_worksheet(registered_name))
+            sheet_deletion_end = time.perf_counter()
+            print(f"Sheet deletion finished in {sheet_deletion_end - sheet_deletion_start:.4f} seconds")
+            
+
+        except Exception as error:
+            print(f"{interaction.user.name}'s ID was not found: {error}")            
+            await interaction.followup.send(f"Your data lookup went wrong {error}\n", ephemeral=True)
+            return
+        command_end_time = time.perf_counter()
+        print(f"Signing out {registered_name} took {command_end_time - command_start_time:4f} seconds\n")
+        await interaction.followup.send(f"You've been signed out!")
 
 async def setup(bot: commands.Bot):    
     _GUILD_ID = discord.Object(id = GUILD_ID)
