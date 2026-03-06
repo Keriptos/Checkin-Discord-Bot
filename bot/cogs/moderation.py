@@ -8,6 +8,7 @@ import os
 import time
 from bot.config_builder import GUILD_ID
 
+_GUILD_ID = discord.Object(id = GUILD_ID)
 class Moderation(commands.Cog) :
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -57,7 +58,7 @@ class Moderation(commands.Cog) :
         print(f"{interaction.user} is trying to sync commands")
         await interaction.response.defer() 
         try :
-            syncedCommands = await self.bot.tree.sync(guild=GUILD_ID) # Syncs commands to the guild only
+            syncedCommands = await self.bot.tree.sync(guild=_GUILD_ID) # Syncs commands to the guild only
             await interaction.followup.send(f"{len(syncedCommands)} commands synced!", ephemeral=True)
         except Exception as error:
             print(f"An error with syncing app commands has occured: {error}\n")
@@ -142,5 +143,5 @@ class Moderation(commands.Cog) :
 
 
 async def setup(bot: commands.Bot):
-    _GUILD_ID = discord.Object(id = GUILD_ID)
+    
     await bot.add_cog(Moderation(bot), guild=_GUILD_ID)
