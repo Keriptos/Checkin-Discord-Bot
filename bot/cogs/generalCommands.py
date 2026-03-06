@@ -6,7 +6,7 @@ from discord import app_commands
 #Other Imports
 import time
 import random
-from typing import List
+from bot.config_builder import GUILD_ID
 
 class generalCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -78,8 +78,8 @@ class generalCommands(commands.Cog):
 
     
 async def setup(bot: commands.Bot):
-    GUILD_ID = discord.Object(id = 1391372922219659435) #This is my server's ID, and I'm only gonna use it for my server
-    await bot.add_cog(generalCommands(bot), guild = GUILD_ID)
+    _GUILD_ID = discord.Object(id = GUILD_ID)
+    await bot.add_cog(generalCommands(bot), guild = _GUILD_ID)
 
 
    

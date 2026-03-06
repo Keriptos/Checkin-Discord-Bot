@@ -1,23 +1,22 @@
-#Discord Imports
+# Discord Imports
 import discord 
 from discord import app_commands
 from discord.ext import commands
 
-#Google Sheets Imports
-from gspread import Worksheet, Spreadsheet
-import gspread
-from google.oauth2.service_account import Credentials
-from bot.services.sheetService import sheetInitialization
+# Google Sheets Related Imports
+from bot.services.sheetService import sheetManager
 
-#Other Imports
+# Other Imports
 import os
 import json
-import datetime
+import datetime; from datetime import timedelta
 import time 
-from datetime import timedelta
+from bot.config_builder import CHECKIN_FILE, USERS_FILE, SHEET_CACHE, GUILD_ID
 
 
-SHEET = sheetInitialization()
+
+SHEET = sheetManager.get_sheet_client()
+
 
 def lockedInTime(elapsedTime: datetime.timedelta):
     # Only handles the same day time difference. User is expected to check-out at the same day
@@ -68,7 +67,7 @@ def setYearDivisionFormat(userFormat: str, date: datetime.datetime):
             yearDivToFind = "Q4"    
     return yearDivToFind
 
-def getYearCell(userFormat: str, worksheet: Worksheet, date: datetime.datetime):
+def getYearCell(userFormat: str, username: str, date: datetime.datetime):
     processStartTime = time.perf_counter()
     if userFormat == "Yearly": 
         yearCell = { # By default, it's D3 --> (1-indexed)
@@ -80,7 +79,8 @@ def getYearCell(userFormat: str, worksheet: Worksheet, date: datetime.datetime):
             "row": 1,
             "col": 4 
         }
-    timeColumn = worksheet.col_values(4) # Year location is fixed, always at D column
+    timeColumn = sheetManager.get_year_column(username)
+    # timeColumn = worksheet.col_values(4) # Year location is fixed, always at D column
     yearRow = yearCell["row"]
     
     found = False   
@@ -139,7 +139,7 @@ def getYearDivision(DTO: YearDivisionDTO):
 def getMonthCell(userID: str, date: datetime.datetime, yearCell: dict, yearDivCell: dict | None):
     # All values are 1 - indexed
     monthStart = time.perf_counter()
-    usersData = loadJSON('users.json')
+    usersData = loadJSON(USERS_FILE)
     
     userFormat = usersData[userID]['format']
     if userFormat == "Yearly":
@@ -160,14 +160,14 @@ def getMonthCell(userID: str, date: datetime.datetime, yearCell: dict, yearDivCe
 class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 at once
     def __init__(self, userID: str):
         self.userID = userID
-        self.usersData: dict = loadJSON('users.json')
+        self.usersData: dict = loadJSON(USERS_FILE)
         self.username: str = self.usersData[userID]['username']
         self.userFormat: str = self.usersData[userID]['format']    
 
         # Basically make a list of activities from user's registered activitiies
-        self.userActivities = self.usersData[userID]['activities']
+        self.userActivities: list = self.usersData[userID]['activities']     
 
-        activityOptions = [] #To store activities based on userID
+        activityOptions = [] # To store activities based on userID
         for activity in self.userActivities:
             activityOptions.append(
                 discord.SelectOption(
@@ -203,7 +203,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
             
         # Local check-in
         start = time.perf_counter()
-        timeCheckedIn = loadJSON('checkintimes.json')        
+        timeCheckedIn = loadJSON(CHECKIN_FILE)        
         await interaction.response.defer()
 
         # Duplicate activity check-in validation
@@ -239,7 +239,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
         for activity in chosen:            
             # Username and activity = keys, time as the value into dictionary
             timeCheckedIn[self.userID]['activities'][activity] = datetime.datetime.now().isoformat()
-        saveJSON(timeCheckedIn, 'checkintimes.json')
+        saveJSON(timeCheckedIn, CHECKIN_FILE)
 
         end = time.perf_counter()
         print(f"Succesfully saved timestamp locally in {end - start:.8f} seconds")        
@@ -247,18 +247,19 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
 
 
         # Sync to sheets process (Check-in)
-        print("Checking in to sheets")        
-        worksheet = SHEET.worksheet(self.username) # Get the worksheet for the userID        
-        worksheetID = worksheet.id
+        print("Checking in to sheets")  
+        worksheet = sheetManager.get_worksheet(self.username)
+        worksheetID = worksheet.id        
+        print(f"Got {interaction.user.name}'s worksheet")
 
         # Get year, timeColumn is a column gotten by Sheet API to gather all values from the year and yearDivison column (D column) 
         date = datetime.datetime.now()
-        yearCell, timeColumn = getYearCell(self.userFormat, worksheet, date)        
+        yearCell, timeColumn = getYearCell(self.userFormat, self.username, date)
 
         # Set up check-in cache
         try:
             startCache = time.perf_counter()
-            sheetCache = loadJSON('sheetCache.json')            
+            sheetCache = loadJSON(SHEET_CACHE)       
             if self.userID not in sheetCache:
                 sheetCache[self.userID] = {}
                 sheetCache[self.userID]['username'] = self.username
@@ -266,7 +267,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
             for activity in chosen:
                 sheetCache[self.userID]['activities'][activity] = {}
                 sheetCache[self.userID]['activities'][activity]['checkinCell'] = {}                    
-            saveJSON(sheetCache, 'sheetCache.json')
+            saveJSON(sheetCache, SHEET_CACHE)
             endCache = time.perf_counter()
             print(f"Sucessfully set up {interaction.user.name}'s check-in cache in {endCache - startCache:.8f} seconds")
         except Exception as error:
@@ -289,7 +290,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
             for activity in chosen:                                
                 sheetCache[self.userID]['activities'][activity]['checkinCell']['row'] = rowToFind
                 sheetCache[self.userID]['activities'][activity]['checkinCell']['col'] = columnToFind
-            saveJSON(sheetCache, 'sheetCache.json')
+            saveJSON(sheetCache, SHEET_CACHE)
 
             # Request section
             compiledRequests = [] 
@@ -346,7 +347,7 @@ class CheckinMenu(discord.ui.Select):# A menu to select your activities up to 5 
                         sheetCache[self.userID]['activities'][activity]['checkinCell']['col'] = offset
                     else:
                         raise ValueError(f"Activity '{activity}' not found")                             
-                saveJSON(sheetCache, 'sheetCache.json')     
+                saveJSON(sheetCache, SHEET_CACHE)     
             except Exception as error:
                 print(f"An error occured when getting rowToFind or columnToFind, {error}")
 
@@ -413,15 +414,16 @@ class CheckoutMenu(discord.ui.Select):
     def __init__(self, userID: str):
         #Declarations to be locally used in the class
         self.userID = userID
-        self.usersData: dict = loadJSON('users.json')
+        self.usersData: dict = loadJSON(USERS_FILE)
         self.username: str = self.usersData[userID]['username']
         self.userFormat: str = self.usersData[userID]['format']
         self.userActivities: list = self.usersData[userID]['activities']        
 
 
         # Basically make a list out of the activity keys from checkintimes.json UNDER their usernames
-        checkinsFile = loadJSON('checkintimes.json')
-        self.checkedInActivities = list(dict.fromkeys(checkinsFile[self.userID]['activities'].keys()))
+        checkinsFile = loadJSON(CHECKIN_FILE)
+        self.checkedInActivities: list = sorted(dict.fromkeys(checkinsFile[self.userID]['activities'].keys()))
+        
 
         options = []
         for activity in self.checkedInActivities:
@@ -455,34 +457,39 @@ class CheckoutMenu(discord.ui.Select):
 
         # Chosen validation because user can use menu multiple times
         # Menu only updates when user initiates the command themselves
-        timeCheckedIn: dict = loadJSON('checkintimes.json')
-        valid = []
+        timeCheckedIn: dict = loadJSON(CHECKIN_FILE)
         if self.userID not in timeCheckedIn:
             print(f"{interaction.user.name} tried to check-out when they've just literally checked out before")
             await interaction.response.send_message(f"You've just checked out from all your activities!")
             return
         
-        
-        activityKeys = timeCheckedIn[self.userID]['activities'].keys()
-        for activity in chosen:
-            if activity not in activityKeys:
-                print(f"{interaction.user.name} tried to recheck-out for {activity}")
-                await interaction.followup.send(f"You've already checked out for {activity}!", ephemeral=True)
-            else: 
-                valid.append(activity)
-        chosen = valid
-        print(f"Filtered selection: {chosen}")
+        try :
+            valid = []
+            activityKeys = timeCheckedIn[self.userID]['activities'].keys()
+            for activity in chosen:
+                if activity not in activityKeys:
+                    print(f"{interaction.user.name} tried to recheck-out for {activity}")
+                    await interaction.followup.send(f"You've already checked out for {activity}!", ephemeral=True)
+                else: 
+                    valid.append(activity)
 
-
+            if not valid:
+                chosen = valid
+                print(f"Filtered selection: {chosen}")        
+        except Exception as error:
+            print(f"Something happened when filtering chosen activities, {error}")
+    
+    
         await interaction.response.defer()
 
         # Syncing to Sheets (Check-out)
-        print("Checking out from sheets")        
-        worksheet = SHEET.worksheet(self.username)
-        worksheetID = worksheet.id 
+        print("Checking out from sheets")
+        worksheet = sheetManager.get_worksheet(self.username)
+        worksheetID = worksheet.id
+        print(f"Got {interaction.user.name}'s worksheet")
         
         timeCheckedOut = datetime.datetime.now()                
-        sheetCache = loadJSON('sheetCache.json')
+        sheetCache = loadJSON(SHEET_CACHE)
 
         if self.userFormat == "Yearly":  # Only 1 activity algorithm
             # Get rowToFind and columnToFind from sheetCache
@@ -584,7 +591,7 @@ class CheckoutMenu(discord.ui.Select):
         else: # Otherwise, remove the specific activity key from the user's dict
             for activity in chosen: 
                 timeCheckedIn[self.userID]['activities'].pop(activity)            
-        saveJSON(timeCheckedIn, 'checkintimes.json') # Save the updated dictionary back to the JSON file
+        saveJSON(timeCheckedIn, CHECKIN_FILE) # Save the updated dictionary back to the JSON file
         print(f"{interaction.user.name} checked out locally for {chosen}")
 
         # Remove checkin cache
@@ -612,7 +619,7 @@ class CheckoutMenu(discord.ui.Select):
                     print(f"Succesfully deleted {self.username}'s {chosen} check-in cache in {removeCheckinsEnd - removeCheckinsStart:8f} seconds")                
                 else:
                     print(f"{self.username} is not fully checked-out yet")
-            saveJSON(sheetCache, 'sheetCache.json')
+            saveJSON(sheetCache, SHEET_CACHE)
         except Exception as error:
             print(f"An error has occured when deleting {interaction.user.name}'s dict from sheetCache {error}")
 
@@ -639,15 +646,19 @@ class CheckInOuts(commands.Cog):
     @app_commands.command(name = "checkinmenu", description = "Checks you in to the google sheet")
     async def checkinMenu(self, interaction: discord.Interaction):
         userID = str(interaction.user.id)        
-        usersData = loadJSON('users.json')        
+        usersData = loadJSON(USERS_FILE)
+        timeCheckedIn = loadJSON(CHECKIN_FILE)     
         
-
+        
         print(f"{interaction.user.name} is trying to check in")
         if userID not in usersData: # Check if user is registered
             print(f"{interaction.user.name} is not registered\n")
             await interaction.response.send_message("You are not registered. Please register first!", ephemeral=True)
-            return        
-        
+            return
+        if len(usersData[userID]['activities']) == 1 and userID in timeCheckedIn:
+            print(f"{interaction.user.name} has already checked in!\n")
+            await interaction.response.send_message("You've alreaady checked in!", ephemeral=True)
+            return 
         try:
             await interaction.response.send_message("Please select your activity to check-in:", view=CheckinMenuView(userID))
         except Exception as error:
@@ -658,8 +669,8 @@ class CheckInOuts(commands.Cog):
     @app_commands.command(name="checkoutmenu", description="Checks you out from the google sheet")
     async def checkoutMenu(self, interaction: discord.Interaction):
         userID = str(interaction.user.id)
-        usersData = loadJSON('users.json')        
-        timeCheckedIn: dict = loadJSON('checkintimes.json')
+        usersData = loadJSON(USERS_FILE)        
+        timeCheckedIn: dict = loadJSON(CHECKIN_FILE)
 
         print(f"{interaction.user.name} is trying to check out")        
         # Check if user is registered
@@ -681,5 +692,5 @@ class CheckInOuts(commands.Cog):
 
     
 async def setup(bot: commands.Bot):
-    GUILD_ID = discord.Object(id = 1391372922219659435) # This is my server's ID, and I'm only gonna use it for my server
-    await bot.add_cog(CheckInOuts(bot), guild = GUILD_ID)
+    _GUILD_ID = discord.Object(id = GUILD_ID)
+    await bot.add_cog(CheckInOuts(bot), guild = _GUILD_ID)
