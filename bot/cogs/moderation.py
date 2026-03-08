@@ -6,8 +6,9 @@ from discord.ext import commands
 #Other Imports
 import os
 import time
+from bot.config_builder import GUILD_ID
 
-GUILD_ID = discord.Object(id = 1391372922219659435) #This is my server's ID, and I'm only gonna use it for my server
+_GUILD_ID = discord.Object(id = GUILD_ID)
 class Moderation(commands.Cog) :
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -57,7 +58,7 @@ class Moderation(commands.Cog) :
         print(f"{interaction.user} is trying to sync commands")
         await interaction.response.defer() 
         try :
-            syncedCommands = await self.bot.tree.sync(guild=GUILD_ID) # Syncs commands to the guild only
+            syncedCommands = await self.bot.tree.sync(guild=_GUILD_ID) # Syncs commands to the guild only
             await interaction.followup.send(f"{len(syncedCommands)} commands synced!", ephemeral=True)
         except Exception as error:
             print(f"An error with syncing app commands has occured: {error}\n")
@@ -75,13 +76,13 @@ class Moderation(commands.Cog) :
         else :
             print(f"An error has occured when a user tried to sync commands: {error}\n")
             await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
-
+    
     
     async def cog_autocomplete(self, interaction: discord.Interaction, current: str):
         cogFiles = []
-        for filename in os.listdir("./cogs"):
+        for filename in os.listdir("./bot/cogs"):
             if filename.endswith(".py"):
-                extensionName = f"cogs.{filename[:-3]}" # ":-3" removes 3 characters (.py) starting from behind the filename
+                extensionName = f"bot.cogs.{filename[:-3]}" # ":-3" removes 3 characters (.py) starting from behind the filename
                 cogFiles.append(extensionName)
 
         return [ # This is the template from the discordpy doc. I only changed the variable name. Don't dare touch it
@@ -142,4 +143,5 @@ class Moderation(commands.Cog) :
 
 
 async def setup(bot: commands.Bot):
-    await bot.add_cog(Moderation(bot), guild=GUILD_ID)
+    
+    await bot.add_cog(Moderation(bot), guild=_GUILD_ID)

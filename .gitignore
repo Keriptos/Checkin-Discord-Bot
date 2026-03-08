@@ -1,6 +1,7 @@
 # DO NOT LEAK
 .env
-credentials.json
+config.ini
+secrets/*
 data/users.json
 data/checkintimes.json
 data/sheetCache.json

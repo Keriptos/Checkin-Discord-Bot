@@ -2,20 +2,16 @@
 import discord 
 from discord import app_commands
 from discord.ext import commands
-from bot.services.sheetService import sheetInitialization
-
-# Google Sheets Imports
-import gspread 
-from gspread import Spreadsheet
-from google.oauth2.service_account import Credentials
+from bot.services.sheetService import sheetManager
 
 # Other Imports
 import time
 import datetime
 import os
 import json
+from bot.config_builder import USERS_FILE, GUILD_ID
 
-SHEET = sheetInitialization()
+SHEET = sheetManager.get_sheet_client()
 
 def loadJSON(file_path):    
     if not os.path.exists(file_path):
@@ -80,8 +76,8 @@ def templateSheetLayout(username: str, format: str): # All index are 0-based
     }
     return data
 
-def logToParticipants(date: datetime.datetime, username: str, activityList: list):
-    worksheet = SHEET.worksheet("Participants")
+def logToParticipants(date: datetime.datetime, username: str, activityList: list):    
+    worksheet = sheetManager.get_worksheet("Participants")
     participantSheet_id = worksheet.id
 
     nameColumn = worksheet.col_values(4) # 1-indexed
@@ -161,8 +157,8 @@ def logToParticipants(date: datetime.datetime, username: str, activityList: list
     SHEET.batch_update({"requests": [updateValuesReq, nameFormatReq, activityFormatReq]})
 
 def tableGeneration(date: datetime.datetime, userID: int, users: dict):
-    registrationRequest = [] # A list to place all the request later on
-    worksheet = SHEET.worksheet("Template")
+    registrationRequest = [] # A list to place all the request later on    
+    worksheet = sheetManager.get_worksheet("Template")
     templateSheetID = worksheet.id
 
     
@@ -265,7 +261,7 @@ def tableGeneration(date: datetime.datetime, userID: int, users: dict):
         # Rewrite the common placeholders
         replacements.extend([
             {
-                "updateCells": { #Rewrite the year placeholder as today's year (D3)
+                "updateCells": { # Rewrite the year placeholder as today's year (D3)
                     "rows": [
                         {"values": [{"userEnteredValue": {"numberValue": date.year}}]} 
                     ],
@@ -280,7 +276,7 @@ def tableGeneration(date: datetime.datetime, userID: int, users: dict):
                 },
             },
             {
-                "updateCells": { #Rewrite the username placeholder as user's username (E1)
+                "updateCells": { # Rewrite the username placeholder as user's username (E1)
                     "rows": [
                         {"values": [{"userEnteredValue": {"stringValue": f"{username}"}}]} 
                     ],
@@ -488,7 +484,7 @@ class Registration (commands.Cog):
         print(f"{interaction.user.name} is trying to register")
         commandStartTime = time.perf_counter() # To record how long the command takes to execute
         userID = str(interaction.user.id)
-        usersData = loadJSON('users.json')
+        usersData = loadJSON(USERS_FILE)
         
         # Validations
         if userID in usersData:
@@ -511,8 +507,7 @@ class Registration (commands.Cog):
 
         try:       
             temp: list = [activity1, activity2, activity3, activity4, activity5]
-            activityList: list = [activity.strip().capitalize() for activity in temp if activity is not None]
-            activityList.sort() # Sort for consistency sake
+            activityList: list = sorted([activity.strip().capitalize() for activity in temp if activity is not None])            
 
             # Write the data to local file
             processStartTime = time.perf_counter()
@@ -520,7 +515,7 @@ class Registration (commands.Cog):
             usersData[userID]['username'] = name 
             usersData[userID]['activities'] = activityList 
             usersData[userID]['format'] = activityFormat(activityList) 
-            saveJSON(usersData, 'users.json')
+            saveJSON(usersData, USERS_FILE)
             processEndTime = time.perf_counter()
             print(f"Registered as {name} into the local logs in {processEndTime - processStartTime:.4f} seconds")
         except Exception as error:
@@ -556,7 +551,42 @@ class Registration (commands.Cog):
         commandEndTime = time.perf_counter()
         print(f"Registration executed in {commandEndTime - commandStartTime:.4f} seconds\n")
 
+    @app_commands.command(name="signout", description="Signs out from the sheet. Will delete your sheet data upon initiating")
+    async def signout(self, interaction: discord.Interaction):
+        command_start_time = time.perf_counter()
+        print(f"{interaction.user.name} is trying to sign-out")
 
-async def setup(bot: commands.Bot):
-    GUILD_ID = discord.Object(id = 1391372922219659435) #This is my server's ID, and I'm only gonna use it for my server
-    await bot.add_cog(Registration(bot), guild = GUILD_ID)
+        userID = str(interaction.user.id)
+        usersData: dict = loadJSON(USERS_FILE)
+        # Validations
+        if userID not in usersData:
+            print(f"{interaction.user.name} tried to sign-out but hasn't registered")
+            await interaction.response.send_message(f"Can't sign out if you haven't registered!", ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+        try:            
+            local_deletion_start = time.perf_counter()
+            registered_name: str = usersData[userID]["username"]
+            del usersData[userID]
+            saveJSON(usersData, USERS_FILE)
+            local_deletion_end = time.perf_counter()
+            print(f"Local deletion finished in {local_deletion_end - local_deletion_start:.8f} seconds")
+
+            sheet_deletion_start = time.perf_counter()
+            SHEET.del_worksheet(sheetManager.get_worksheet(registered_name))
+            sheet_deletion_end = time.perf_counter()
+            print(f"Sheet deletion finished in {sheet_deletion_end - sheet_deletion_start:.4f} seconds")
+            
+
+        except Exception as error:
+            print(f"{interaction.user.name}'s ID was not found: {error}")            
+            await interaction.followup.send(f"Your data lookup went wrong {error}\n", ephemeral=True)
+            return
+        command_end_time = time.perf_counter()
+        print(f"Signing out {registered_name} took {command_end_time - command_start_time:4f} seconds\n")
+        await interaction.followup.send(f"You've been signed out!")
+
+async def setup(bot: commands.Bot):    
+    _GUILD_ID = discord.Object(id = GUILD_ID)
+    await bot.add_cog(Registration(bot), guild = _GUILD_ID)
