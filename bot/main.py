@@ -1,7 +1,6 @@
 #Discord Imports
 import discord
 from discord.ext import commands
-
 # Other Imports
 import os
 import asyncio
@@ -25,7 +24,7 @@ async def on_ready():
         print("An error with syncing app commands has occured : ", error)
     
 async def sheet_initializations():
-    sheetManager.get_sheet_client
+    sheetManager.get_sheet_client()
     sheetManager.force_load_worksheets()
 
 async def load():    
