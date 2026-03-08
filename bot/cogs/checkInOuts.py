@@ -18,18 +18,20 @@ from bot.config_builder import CHECKIN_FILE, USERS_FILE, SHEET_CACHE, GUILD_ID
 SHEET = sheetManager.get_sheet_client()
 
 
-def lockedInTime(elapsedTime: datetime.timedelta):
-    # Only handles the same day time difference. User is expected to check-out at the same day
-    hours = elapsedTime.seconds // 3600
-    minutes = (elapsedTime.seconds % 3600) // 60     
-    seconds = elapsedTime.seconds % 60
+def lockedInTime(elapsed: datetime.timedelta) -> str:
+    total_seconds = int(elapsed.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
 
-    if hours != 0 and minutes != 0 and seconds != 0 : 
-        return(f"{hours} hours {minutes} minutes {seconds} seconds") 
-    elif hours == 0 and minutes != 0 and seconds != 0 :
-        return (f"{minutes} minutes {seconds} seconds")
-    elif hours == 0 and minutes == 0 and seconds != 0 :
-        return (f"{seconds} seconds")
+    parts = []
+    if hours:
+        parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
+    if minutes:
+        parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+    if seconds or not parts:  # show seconds, or "0 seconds" if everything is 0
+        parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
+    
+    return " ".join(parts)
 
 def loadJSON(file_path):
     if not os.path.exists(file_path):
