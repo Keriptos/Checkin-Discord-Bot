@@ -20,10 +20,10 @@ config.read(BASE_DIR / "config.ini")
 
 CHECKIN_FILE = BASE_DIR / config["Paths"]["checkin_file"]
 USERS_FILE   = BASE_DIR / config["Paths"]["users_file"]
-SHEET_CACHE = BASE_DIR / config["Paths"]["sheet_cache"]
+SHEET_CACHE = BASE_DIR /config["Paths"]["sheet_cache"]
 
 
-if __name__ == "__main__":
-    print(CREDS)
+if __name__ == "__main__":    
+    print(CHECKIN_FILE)
     print(USERS_FILE)
-    print(SHEET_CACHE)    
+    print(SHEET_CACHE)
