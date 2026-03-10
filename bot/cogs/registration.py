@@ -462,7 +462,7 @@ class Registration (commands.Cog):
         print(f"{__name__} is ready!")
 
 
-    @app_commands.command(name = "register", description = "Registers a new user onto the sheet")
+    @app_commands.command(name = "test_register", description = "Registers a new user onto the sheet")
     @app_commands.describe(
         name = "A username to register with. Defaulted to your discord name",
         activity1 = "Your required first activity",
@@ -471,7 +471,7 @@ class Registration (commands.Cog):
         activity4 = "Your fourth activity",
         activity5 = "Your fifth activity")
     
-    async def register(
+    async def test_register(
         self, 
         interaction: discord.Interaction,        
         activity1: str,
@@ -551,8 +551,8 @@ class Registration (commands.Cog):
         commandEndTime = time.perf_counter()
         print(f"Registration executed in {commandEndTime - commandStartTime:.4f} seconds\n")
 
-    @app_commands.command(name="signout", description="Signs out from the sheet. Will delete your sheet data upon initiating")
-    async def signout(self, interaction: discord.Interaction):
+    @app_commands.command(name="test_signout", description="Signs out from the sheet. Will delete your sheet data upon initiating")
+    async def test_signout(self, interaction: discord.Interaction):
         command_start_time = time.perf_counter()
         print(f"{interaction.user.name} is trying to sign-out")
 

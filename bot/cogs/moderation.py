@@ -142,6 +142,5 @@ class Moderation(commands.Cog) :
             await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
 
 
-async def setup(bot: commands.Bot):
-    
+async def setup(bot: commands.Bot):    
     await bot.add_cog(Moderation(bot), guild=_GUILD_ID)

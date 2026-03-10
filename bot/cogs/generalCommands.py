@@ -6,7 +6,19 @@ from discord import app_commands
 #Other Imports
 import time
 import random
-from bot.config_builder import GUILD_ID
+from bot.config_builder import GUILD_ID, CHECKIN_FILE
+def loadJSON(file_path):
+    import json, os    
+    if not os.path.exists(file_path):
+        with open(file_path, 'w') as file:
+            file.write('{}') # create empty file with an empty dict
+    try:
+        with open(file_path) as file: 
+            return json.load(file)
+    except json.JSONDecodeError:
+        with open(file_path, 'w') as file:
+            file.write('{}')  # Create an empty JSON file if it doesn't exist or is invalid and write in an empty dict
+    return {}
 
 class generalCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -15,14 +27,7 @@ class generalCommands(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print(f"{__name__} is online!")
-    
-    
-    @commands.Cog.listener()
-    async def on_member_join(self, interaction: discord.Interaction, member: discord.Member):    
-        channel = member.guild.system_channel
-        if channel is not None: 
-            await channel.send(f'Welcome {member.mention}.')
-
+            
     @app_commands.command(name = "ping", description = "Latency test from you to the bot")
     async def ping(self, interaction: discord.Interaction):
         commandStartTime = time.perf_counter()
@@ -43,9 +48,9 @@ class generalCommands(commands.Cog):
         print(f"Ping command executed in {commandEndTime - commandStartTime:0.4f} seconds\n") #Track how long the command takes to execute
 
 
-    @app_commands.command(name = "remind", description = "Mention members with an optional message")
+    @app_commands.command(name = "test_remind", description = "Mention members with an optional message")
     @app_commands.describe(members = "Select one or more members to mention", message = "Custom reminder message (optional)")
-    async def remind(
+    async def test_remind(
         self,
         interaction: discord.Interaction,
         members: discord.Member, 
@@ -53,7 +58,9 @@ class generalCommands(commands.Cog):
         ):
 
         print(f"{interaction.user} is trying to remind {members} with message: {message}")
+
         commandStartTime = time.perf_counter() 
+        time_checkedin = loadJSON(CHECKIN_FILE)
 
         if not members :
             await interaction.response.send_message("You must mention at least one member❗", ephemeral= True) #error mesage
@@ -61,14 +68,24 @@ class generalCommands(commands.Cog):
         defaultMessages = [
             "GET YOUR SHIT DONEEEE 🔥🔥❗❗ ",
             "Don't forget to do your thing ❗",
-            "You know what time it is? 👀"
+            "You know what time it is? 👀",
+            "Get yo ass up an GET YOUR SHIT DONE ❗❗"
+
         ]
         
-        if message is None or message == "" :
-            msg = random.choice(defaultMessages)
-        else :
+        checkin_messages = [
+            "Don't forget to CHECKOUT ❗"        
+        ]
+        if message is None or message == "":
+            # If user that was reminded has checked in, print checked-in messages.
+            # Else, print default messages
+            if members.id in time_checkedin: 
+                msg = random.choice(checkin_messages)
+            else:
+                msg = random.choice(defaultMessages)
+        else:
             msg = message # When user types something it saves into message, and uses that message.
-        try :
+        try:
             await interaction.response.send_message(f"{members.mention} {msg}") 
         except Exception as e:
             print(f"Failed to send message {e}\n")
