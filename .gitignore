@@ -1,9 +1,8 @@
 # DO NOT LEAK
 .env
-secrets/*
+credentials.json
 data/users.json
 data/checkintimes.json
-data/credentials.json
 data/sheetCache.json
 *.bat
 
