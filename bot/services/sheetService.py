@@ -14,7 +14,7 @@ class SheetService:
         commandStartTime = time.perf_counter()
         if self.sheet is None:
             scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-            creds = Credentials.from_service_account_file(CREDS, scopes = scopes)
+            creds = Credentials.from_service_account_info(CREDS, scopes = scopes)            
             client = gspread.authorize(creds)
             self.sheet = client.open_by_key(GOOGLE_SHEET_ID)
             commandEndTime = time.perf_counter()
@@ -57,3 +57,6 @@ class SheetService:
 # To prevent making another class instance in any of the logic files, 
 # it's better to import the variable from this module
 sheetManager = SheetService()
+
+if __name__ == "__main__":
+    sheetManager.get_sheet_client()
