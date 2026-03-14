@@ -5,30 +5,12 @@ from discord.ext import commands
 from bot.services.sheetService import sheetManager
 
 # Other Imports
+import bot.helpers.utils as utls
 import time
 import datetime
-import os
-import json
 from bot.config_builder import USERS_FILE, GUILD_ID
 
 SHEET = sheetManager.get_sheet_client()
-
-def loadJSON(file_path):    
-    if not os.path.exists(file_path):
-        with open(file_path, 'w') as file:
-            file.write('{}') # create empty file with an empty dict
-    try:
-        with open(file_path) as file: 
-            return json.load(file)
-    except json.JSONDecodeError:
-        with open(file_path, 'w') as file:
-            file.write('{}')  # Create an empty JSON file if it doesn't exist or is invalid and write in an empty dict
-    return {}
-
-
-def saveJSON(data, file_path):    
-    with open(file_path, 'w') as file:
-        json.dump(data, file, indent=4)
 
 
 def activityFormat(activities):
@@ -162,9 +144,9 @@ def tableGeneration(date: datetime.datetime, userID: int, users: dict):
     templateSheetID = worksheet.id
 
     
-    username = users.get("username", "Unknown User")
-    userActivities = users.get("activities", [])
-    userFormat = users.get("format", "Format not found")
+    username: str = users.get("username", "Unknown User")
+    userActivities: list = users.get("activities", [])
+    userFormat: str = users.get("format", "Format not found")
 
 
     newSheetID = newUserSheetID(userID)
@@ -263,7 +245,7 @@ def tableGeneration(date: datetime.datetime, userID: int, users: dict):
             {
                 "updateCells": { # Rewrite the year placeholder as today's year (D3)
                     "rows": [
-                        {"values": [{"userEnteredValue": {"numberValue": date.year}}]} 
+                        {"values": [{"userEnteredValue": {"numberValue": date.year}}]}
                     ],
                     "fields": "userEnteredValue",
                     "range": {
@@ -346,7 +328,7 @@ def tableGeneration(date: datetime.datetime, userID: int, users: dict):
         
         # Since this is registration, it'd be fixed
         # Rewrite the activity placeholders
-        activityRow = 3        
+        activityRow = 3
         if userFormat == "Semesterly_Standard":
             for col in range(5, 17): # Starts from column F, ends at column Q (col 16)          
                 if col % 2 == 1:
@@ -484,7 +466,7 @@ class Registration (commands.Cog):
         print(f"{interaction.user.name} is trying to register")
         commandStartTime = time.perf_counter() # To record how long the command takes to execute
         userID = str(interaction.user.id)
-        usersData = loadJSON(USERS_FILE)
+        usersData = utls.loadJSON(USERS_FILE)
         
         # Validations
         if userID in usersData:
@@ -515,7 +497,7 @@ class Registration (commands.Cog):
             usersData[userID]['username'] = name 
             usersData[userID]['activities'] = activityList 
             usersData[userID]['format'] = activityFormat(activityList) 
-            saveJSON(usersData, USERS_FILE)
+            utls.saveJSON(usersData, USERS_FILE)
             processEndTime = time.perf_counter()
             print(f"Registered as {name} into the local logs in {processEndTime - processStartTime:.4f} seconds")
         except Exception as error:
@@ -557,7 +539,7 @@ class Registration (commands.Cog):
         print(f"{interaction.user.name} is trying to sign-out")
 
         userID = str(interaction.user.id)
-        usersData: dict = loadJSON(USERS_FILE)
+        usersData: dict = utls.loadJSON(USERS_FILE)
         # Validations
         if userID not in usersData:
             print(f"{interaction.user.name} tried to sign-out but hasn't registered")
@@ -569,7 +551,7 @@ class Registration (commands.Cog):
             local_deletion_start = time.perf_counter()
             registered_name: str = usersData[userID]["username"]
             del usersData[userID]
-            saveJSON(usersData, USERS_FILE)
+            utls.saveJSON(usersData, USERS_FILE)
             local_deletion_end = time.perf_counter()
             print(f"Local deletion finished in {local_deletion_end - local_deletion_start:.8f} seconds")
 
