@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Handles the environment file
 load_dotenv()
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+DISCORD_TOKEN = os.getenv("TEST_BOT") # Token of test-bot.
 GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID")
 GUILD_ID = os.getenv("SERVER_ID")
 CREDS = json.loads(os.getenv("CREDS"))
