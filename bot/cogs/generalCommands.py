@@ -4,10 +4,12 @@ from discord.ext import commands
 from discord import app_commands
 
 #Other Imports
+from bot.helpers.utils import loadJSON
+from bot.config_builder import ConfigDTO
 import time
 import random
-from bot.config_builder import GUILD_ID
 
+CFG = ConfigDTO()
 class generalCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -55,6 +57,7 @@ class generalCommands(commands.Cog):
         print(f"{interaction.user} is trying to remind {members} with message: {message}")
         commandStartTime = time.perf_counter() 
 
+
         if not members :
             await interaction.response.send_message("You must mention at least one member❗", ephemeral= True) #error mesage
             return  #returns nothing ~ as an error. Then the message above will appear only to you
@@ -78,7 +81,7 @@ class generalCommands(commands.Cog):
 
     
 async def setup(bot: commands.Bot):
-    _GUILD_ID = discord.Object(id = GUILD_ID)
+    _GUILD_ID = discord.Object(id = CFG.GUILD_ID)
     await bot.add_cog(generalCommands(bot), guild = _GUILD_ID)
 
 

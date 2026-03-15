@@ -4,7 +4,9 @@ import gspread
 from gspread import Worksheet, Spreadsheet 
 from google.oauth2.service_account import Credentials
 from bot.helpers.utils import loadJSON, saveJSON
-from bot.config_builder import USERS_FILE, GOOGLE_SHEET_ID, CREDS
+from bot.config_builder import ConfigDTO
+
+CFG = ConfigDTO()
 
 class SheetService:
     def __init__(self):
@@ -16,9 +18,9 @@ class SheetService:
         commandStartTime = time.perf_counter()
         if self.sheet is None:
             scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-            creds = Credentials.from_service_account_info(CREDS, scopes = scopes)            
+            creds = Credentials.from_service_account_info(CFG.CREDS, scopes = scopes)            
             client = gspread.authorize(creds)
-            self.sheet = client.open_by_key(GOOGLE_SHEET_ID)
+            self.sheet = client.open_by_key(CFG.GOOGLE_SHEET_ID)
             commandEndTime = time.perf_counter()
             print(f"Initialized sheet client in {commandEndTime - commandStartTime:.4f} seconds")
         return self.sheet
@@ -145,18 +147,39 @@ class SheetService:
         print(f"Found yearDivisionCell '{yearDivToFind}': {yearDivisionCell} in {end - start:.8f} seconds")
         return yearDivisionCell
 
+    def get_month_cell(self, user: dict, date: datetime.datetime, yearCell: dict, yearDivCell: dict | None):
+        # All values are 1 - indexed
+        monthStart = time.perf_counter()
+        userFormat = user['format']
+        
+        if userFormat == "Yearly":
+            monthCell = {
+            "row": yearCell["row"],
+            "col": 6 + (date.month - 1) 
+        }
+        else:         
+            userActivities = user['activities']            
+            monthCell = {
+            "row": yearDivCell["row"] if yearDivCell is not None else yearCell["row"] + 2,
+            "col": 6 + (len(userActivities) * (date.month - 1)) 
+        }
+        monthEnd = time.perf_counter()
+        print(f"Completed monthCell search '{monthCell}' in {monthEnd - monthStart:.8f} seconds")
+        return monthCell
+
 
 # To prevent making another class instance in any of the logic files, 
 # it's better to import the variable from this module
 sheetManager = SheetService()
 
 if __name__ == "__main__":
-    print(sheetManager.get_year_column('imon06'))
+    print(sheetManager.get_year_column('Cryptoz'))
     
-    usersData: dict = loadJSON(USERS_FILE)
-    userID = str(582370335886802964)
+    usersData: dict = loadJSON(CFG.USERS_FILE)
+    userID = str(591939252061732900)
     user = usersData[userID]
     
     yearCell = sheetManager.get_year_cell(user, datetime.datetime.now())
-    print(yearCell)
-    print(sheetManager.get_year_division_cell(yearCell, user, datetime.datetime.now()))
+    yearDivCell = None
+    monthCell = sheetManager.get_month_cell(user, datetime.datetime.now(), yearCell, yearDivCell)
+    print(yearCell, yearDivCell, monthCell)
