@@ -4,22 +4,12 @@ from discord.ext import commands
 from discord import app_commands
 
 #Other Imports
+from bot.helpers.utils import loadJSON
+from bot.config_builder import ConfigDTO
 import time
 import random
-from bot.config_builder import GUILD_ID, CHECKIN_FILE
-def loadJSON(file_path):
-    import json, os    
-    if not os.path.exists(file_path):
-        with open(file_path, 'w') as file:
-            file.write('{}') # create empty file with an empty dict
-    try:
-        with open(file_path) as file: 
-            return json.load(file)
-    except json.JSONDecodeError:
-        with open(file_path, 'w') as file:
-            file.write('{}')  # Create an empty JSON file if it doesn't exist or is invalid and write in an empty dict
-    return {}
 
+CFG = ConfigDTO()
 class generalCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -60,7 +50,7 @@ class generalCommands(commands.Cog):
         print(f"{interaction.user} is trying to remind {members} with message: {message}")
 
         commandStartTime = time.perf_counter() 
-        time_checkedin = loadJSON(CHECKIN_FILE)
+        time_checkedin = loadJSON(CFG.CHECKIN_FILE)
 
         if not members :
             await interaction.response.send_message("You must mention at least one member❗", ephemeral= True) #error mesage
@@ -95,7 +85,7 @@ class generalCommands(commands.Cog):
 
     
 async def setup(bot: commands.Bot):
-    _GUILD_ID = discord.Object(id = GUILD_ID)
+    _GUILD_ID = discord.Object(id = CFG.GUILD_ID)
     await bot.add_cog(generalCommands(bot), guild = _GUILD_ID)
 
 

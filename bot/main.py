@@ -5,8 +5,9 @@ from discord.ext import commands
 import os
 import asyncio
 from bot.services.sheetService import sheetManager
-from bot.config_builder import DISCORD_TOKEN, GUILD_ID
+from bot.config_builder import ConfigDTO
 
+CFG = ConfigDTO()
 bot = commands.Bot(command_prefix = None,  intents = discord.Intents.default()) # command_prefix is not needed for app commands
 
 @bot.event
@@ -16,7 +17,9 @@ async def on_ready():
     
     # Sync commands to the bot
     try :        
-        _GUILD_ID = discord.Object(id = GUILD_ID) # This is my server's ID, and I'm only gonna use it for my server
+        _GUILD_ID = discord.Object(id = CFG.GUILD_ID) # This is my server's ID, and I'm only gonna use it for my server
+
+    
         syncedCommands = await bot.tree.sync(guild= _GUILD_ID) # It'll return a list of commands that had been synced
         print(f"Synced {len(syncedCommands)} commands.\n")        
     except Exception as error:
@@ -41,7 +44,9 @@ async def main():
     async with bot:
         await sheet_initializations()
         await load()
-        await bot.start(DISCORD_TOKEN)
+        await bot.start(CFG.DISCORD_TOKEN)
+
+    
 
 
 if __name__  == "__main__":

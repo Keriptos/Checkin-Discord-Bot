@@ -6,12 +6,13 @@ from bot.services.sheetService import sheetManager
 
 # Other Imports
 import bot.helpers.utils as utls
+from bot.config_builder import ConfigDTO
 import time
 import datetime
-from bot.config_builder import USERS_FILE, GUILD_ID
 
+# Globals
 SHEET = sheetManager.get_sheet_client()
-
+CFG = ConfigDTO()
 
 def activityFormat(activities):
     amountOfActivities = len(activities)
@@ -466,7 +467,7 @@ class Registration (commands.Cog):
         print(f"{interaction.user.name} is trying to register")
         commandStartTime = time.perf_counter() # To record how long the command takes to execute
         userID = str(interaction.user.id)
-        usersData = utls.loadJSON(USERS_FILE)
+        usersData = utls.loadJSON(CFG.USERS_FILE)
         
         # Validations
         if userID in usersData:
@@ -497,7 +498,7 @@ class Registration (commands.Cog):
             usersData[userID]['username'] = name 
             usersData[userID]['activities'] = activityList 
             usersData[userID]['format'] = activityFormat(activityList) 
-            utls.saveJSON(usersData, USERS_FILE)
+            utls.saveJSON(usersData, CFG.USERS_FILE)
             processEndTime = time.perf_counter()
             print(f"Registered as {name} into the local logs in {processEndTime - processStartTime:.4f} seconds")
         except Exception as error:
@@ -539,7 +540,7 @@ class Registration (commands.Cog):
         print(f"{interaction.user.name} is trying to sign-out")
 
         userID = str(interaction.user.id)
-        usersData: dict = utls.loadJSON(USERS_FILE)
+        usersData: dict = utls.loadJSON(CFG.USERS_FILE)
         # Validations
         if userID not in usersData:
             print(f"{interaction.user.name} tried to sign-out but hasn't registered")
@@ -551,7 +552,7 @@ class Registration (commands.Cog):
             local_deletion_start = time.perf_counter()
             registered_name: str = usersData[userID]["username"]
             del usersData[userID]
-            utls.saveJSON(usersData, USERS_FILE)
+            utls.saveJSON(usersData, CFG.USERS_FILE)
             local_deletion_end = time.perf_counter()
             print(f"Local deletion finished in {local_deletion_end - local_deletion_start:.8f} seconds")
 
@@ -570,5 +571,5 @@ class Registration (commands.Cog):
         await interaction.followup.send(f"You've been signed out!")
 
 async def setup(bot: commands.Bot):    
-    _GUILD_ID = discord.Object(id = GUILD_ID)
+    _GUILD_ID = discord.Object(id = CFG.GUILD_ID)
     await bot.add_cog(Registration(bot), guild = _GUILD_ID)

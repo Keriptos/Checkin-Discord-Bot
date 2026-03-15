@@ -4,11 +4,12 @@ from discord import app_commands
 from discord.ext import commands
 
 #Other Imports
+from bot.config_builder import ConfigDTO
 import os
 import time
-from bot.config_builder import GUILD_ID
 
-_GUILD_ID = discord.Object(id = GUILD_ID)
+CFG = ConfigDTO()
+_GUILD_ID = discord.Object(id = CFG.GUILD_ID)
 class Moderation(commands.Cog) :
     def __init__(self, bot: commands.Bot):
         self.bot = bot
