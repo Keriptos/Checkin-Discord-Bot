@@ -1,47 +1,17 @@
 #Google Sheets Related Imports
 from gspread import Worksheet
 from gspread_formatting import *
-from bot.services.sheetService import SheetService
+from bot.services.sheetService import sheetManager
 
 #Other Imports
-import json
-import os
 import datetime
 from datetime import timedelta
-from bot.config_builder import CHECKIN_FILE, USERS_FILE, SHEET_CACHE
+import bot.helpers.utils as utls
+from bot.config_builder import ConfigDTO 
 import time # To track how long commands take to execute
 
-sheetManager = SheetService()
+CFG = ConfigDTO()
 SHEET = sheetManager.get_sheet_client()
-
-def lockedInTime(elapsedTime: timedelta):
-    hours = elapsedTime.seconds // 3600
-    minutes = (elapsedTime.seconds % 3600) // 60     
-    seconds = elapsedTime.seconds % 60
-
-    if hours != 0 and minutes != 0 and seconds != 0 : 
-        return(f"{hours} hours {minutes} minutes {seconds} seconds") 
-    elif hours == 0 and minutes != 0 and seconds != 0 :
-        return (f"{minutes} minutes {seconds} seconds")
-    elif hours == 0 and minutes == 0 and seconds != 0 :
-        return (f"{seconds} seconds")
-
-
-def loadJSON(file_path):
-    if not os.path.exists(file_path):
-        with open(file_path, 'w') as file:
-            json.dump({}, file) # create an empty file
-    try:
-        with open(file_path) as file: 
-            return json.load(file)
-    except json.decoder.JSONDecodeError:
-        with open(file_path, 'w') as file:
-            json.dump({}, file)  # Create an empty JSON file if it doesn't exist or is invalid
-    return {}
-
-def saveJSON(data, file_path):
-    with open(file_path, 'w') as file:
-        json.dump(data, file, indent = 4)
 
 
 """
@@ -76,133 +46,19 @@ Year --> Year Division (Semester or Quarter) --> Month --> Activity --> Date
 """
 OPTIMIZATIONS?
 
-Put month on enums, because monthColumn are basically constants. Just count the index and offset them by len of activities
-Save the check-in cell, so that check-out process doesn't need to fetch anything
+Put month on enums, because monthColumn are basically constants. Just count the index and offset them by len of activities (DONE)
+Save the check-in cell, so that check-out process doesn't need to fetch anything (DONE)
 
 
 """
-
-def setYearDivisionFormat(userFormat: str, date: datetime.datetime):
-    # Semester 1 --> 1 2 3 4 5 6 | Semester 2 --> 7 8 9 10 11 12
-    if "Semesterly" in userFormat:
-        if date.month <= 6: 
-            yearDivToFind = "Semester 1"
-        else:
-            yearDivToFind = "Semester 2"
-
-    # Q1 --> 1 2 3 | Q2 --> 4 5 6 | Q3 --> 7 8 9 | Q4 --> 10 11 12        
-    elif "Quarterly" in userFormat:
-        if date.month <= 3:
-            yearDivToFind = "Q1"
-        elif date.month <= 6:
-            yearDivToFind = "Q2"
-        elif date.month <= 9:
-            yearDivToFind = "Q3"
-        else:
-            yearDivToFind = "Q4"    
-    return yearDivToFind
-
-def getYearCell(userFormat: str, worksheet: Worksheet, date: datetime.datetime):
-    processStartTime = time.perf_counter()
-    if userFormat == "Yearly": 
-        yearCell = { # By default, it's D3 --> (1-indexed)
-            "row": 3,
-            "col": 4 
-        }
-    else:
-        yearCell = { # By default, it's D1 --> (1-indexed)
-            "row": 1,
-            "col": 4 
-        }
-    timeColumn = worksheet.col_values(4) # Year location is fixed, always at D column
-    yearRow = yearCell["row"]
-    
-    found = False   
-    while (yearRow <= len(timeColumn)):        
-        if (timeColumn[yearRow - 1] == str(date.year)): # the index was decremented by 1 so it's 0-indexed
-            yearCell['row'] = yearRow
-            found = True
-            break
-
-        # Skip algorithm
-        if (userFormat == "Yearly"):
-            yearRow += 35
-        else :
-            yearRow += 36
-
-    if not found:
-        raise ValueError(f"Year {date.year} not found")
-    
-    processEndTime = time.perf_counter()
-    print(f"Found yearCell in {processEndTime - processStartTime:.4f} seconds")
-
-    return yearCell, timeColumn
-
-
-class YearDivisionDTO():
-    def __init__ (self, yearDivToFind: str, yearCell: dict, timeColumn: list):
-        self.yearDivToFind = yearDivToFind
-        self.yearCell = yearCell
-        self.timeColumn = timeColumn
-
-# Search for year division like Semester 1, Q2, etc
-def getYearDivision(DTO: YearDivisionDTO):    
-    start = time.perf_counter()    
-
-    # Default values are 1-indexed)
-    yearDivisionCell = { 
-        "row": DTO.yearCell["row"] + 2,
-        "col": DTO.yearCell["col"]
-    }
-
-    # Search the yearDivRow
-    found = False   
-    yearDivRow = yearDivisionCell["row"] 
-    while (yearDivRow <= len(DTO.timeColumn)):  
-        if (DTO.timeColumn[yearDivRow - 1] == DTO.yearDivToFind): # the index was decremented by 1 so it's 0-indexed
-            yearDivisionCell['row'] = yearDivRow
-            found = True
-            break
-
-        # Skip algorithm
-        yearDivRow += 36
-    
-    end = time.perf_counter()
-    print(f"Found yearDivisionCell '{DTO.yearDivToFind}' in {end - start:.8f} seconds")
-    if not found:
-        raise ValueError(f"{DTO.yearDivToFind} not found")
-
-    return yearDivisionCell
-
-def getMonthCell(userID: str, date: datetime.datetime, yearCell: dict, yearDivCell: dict | None):
-    # All values are 1 - indexed
-    monthStart = time.perf_counter()
-    usersData = loadJSON(USERS_FILE)
-    
-    userFormat = usersData[userID]['format']
-    if userFormat == "Yearly":
-        monthCell = {
-        "row": yearCell["row"],
-        "col": 6 + (date.month - 1) 
-    }
-    else:         
-        userActivities = usersData[userID]['activities']
-        monthCell = {
-        "row": yearDivCell["row"] if yearDivCell is not None else yearCell["row"] + 2,
-        "col": 6 + (len(userActivities) * (date.month - 1)) 
-    }
-    monthEnd = time.perf_counter()
-    print(f"Completed month search in {monthEnd - monthStart:.8f} seconds")
-    return monthCell
-
 class CheckInOutsDTO():
     def __init__(self, userID: int):
         self.userID = str(userID)
-        self.usersData = loadJSON(USERS_FILE)
-        user = self.usersData[self.userID]
-        self.username = user['username']
-        self.userFormat = user['format']
-        self.userActivities = user['activities']
+        usersData = utls.loadJSON(CFG.USERS_FILE)
+        self.user = usersData[self.userID]
+        self.username = self.user['username']
+        self.userFormat = self.user['format']
+        self.userActivities = self.user['activities']
 
 # Update to sheets (Check-in)
 def CheckIn(DTO: CheckInOutsDTO, chosen: list):        
@@ -210,7 +66,7 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
     
     # Local check-in
     start = time.perf_counter()
-    timeCheckedIn = loadJSON(CHECKIN_FILE)
+    timeCheckedIn = utls.loadJSON(CFG.CHECKIN_FILE)
 
     # If user has checked in, stop here
     if DTO.userID in timeCheckedIn:
@@ -225,29 +81,28 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
     for activity in chosen:            
         # Username and activity = keys, time as the value into dictionary
         timeCheckedIn[DTO.userID]["activities"][activity] = datetime.datetime.now().isoformat()
-    saveJSON(timeCheckedIn, CHECKIN_FILE)
+    utls.saveJSON(timeCheckedIn, CFG.CHECKIN_FILE)
     end = time.perf_counter()
     print(f"Succesfully saved timestamp locally in {end - start:.8f} seconds")
 
 
     print("Going to sheets")    
-    worksheet = SHEET.worksheet(DTO.username)
+    worksheet = sheetManager.get_worksheet(DTO.username)
     worksheetID = worksheet.id
 
-    date = datetime.datetime.now() # Get the value from userID, which is the time checked in for that specific user
-    
-    # Get year, timeColumn is a column gotten by Sheet API to gather all values from the year and yearDivison column (D column) 
-    yearCell, timeColumn = getYearCell(DTO.userFormat, worksheet, date) 
-        
-    # Get year divison (semester or quarter) - Only for non-yearly formats
-    yearDivCell = None
-    monthCell = getMonthCell(DTO.userID, date, yearCell, yearDivCell)
-
+    # Fetching rowToFind & colToFind for the activity cell that we want to know the location of
+    date = datetime.datetime.now() 
+    yearCell = sheetManager.get_year_cell(DTO.user, date)
+    if DTO.user['format'] != 'Yearly':
+        yearDivCell = sheetManager.get_year_division_cell(yearCell, DTO.user, date)
+    else:
+        yearDivCell = None
+    monthCell = sheetManager.get_month_cell(DTO.user, date, yearCell, yearDivCell)
 
     # Set-up cache when checking in
     try:
         startCache = time.perf_counter()
-        sheetCache = loadJSON(SHEET_CACHE)
+        sheetCache = utls.loadJSON(CFG.SHEET_CACHE)
         if DTO.userID not in sheetCache:
             sheetCache[DTO.userID] = {}
             sheetCache[DTO.userID]['username'] = DTO.username
@@ -255,7 +110,7 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
             for activity in chosen:
                 sheetCache[DTO.userID]['activities'][activity] = {}
                 sheetCache[DTO.userID]['activities'][activity]['checkinCell'] = {}
-        saveJSON(sheetCache, SHEET_CACHE)
+        utls.saveJSON(sheetCache, CFG.SHEET_CACHE)
         endCache = time.perf_counter()
         print(f"Sucessfully set up {DTO.username}'s check-in cache in {endCache - startCache:.8f} seconds")
     except Exception as error:
@@ -268,51 +123,23 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
         """
         # Get rowToFind and columnToFind. Decrement by 1 so that it's 0-indexed
         rowColStart = time.perf_counter()
-        rowToFind = (monthCell["row"] - 1) + date.day  # The first day is a row after monthRow. 
-        columnToFind = monthCell["col"] - 1 # Since there's only 1 activity, columnToFind is just monthColumn
+        rowToFind = (monthCell["row"] - 1) + date.day  # The first day is a row after monthRow.
+        columnToFind = [] # Made columnToFind a list, so that it's compatible with 2+ activity algorithm
+        columnToFind.append(monthCell["col"] - 1) # Since there's only 1 activity, columnToFind is just monthColumn
         for activity in chosen:
             sheetCache[DTO.userID]['activities'][activity]['checkinCell']['row']= rowToFind 
-            sheetCache[DTO.userID]['activities'][activity]['checkinCell']['col']= columnToFind
+            sheetCache[DTO.userID]['activities'][activity]['checkinCell']['col']= columnToFind[0]
         rowColEnd = time.perf_counter()
-        saveJSON(sheetCache, SHEET_CACHE)
+        utls.saveJSON(sheetCache, CFG.SHEET_CACHE)
         print(f"Sucessfully wrote {DTO.username}'s checkinCell into sheetCache in {rowColEnd - rowColStart:.8f} seconds")
-
-        # Request section
-        compiledRequests = [] 
-        CheckInReq = { #Write 'ON PROGRESS' or 'DONE' to update cell (we used conditional formatting when making the table) 
-            "requests": [
-                {
-                    "updateCells": {
-                        "rows": [ 
-                            {"values": [{"userEnteredValue": {"stringValue": "ON PROGRESS"}}]}
-                        ],
-                        "fields": "userEnteredValue",
-                        "range": {
-                            "sheetId": worksheetID,
-                            "startRowIndex": rowToFind, # First row
-                            "endRowIndex": rowToFind + 1,
-                            "startColumnIndex": columnToFind, # Column D
-                            "endColumnIndex": columnToFind + 1,
-                        }
-                    }
-                }
-            ]
-        }
-        compiledRequests.extend(CheckInReq["requests"])
 
     else: # 2+ algorithm
         """
         Year -> YearDiv -> Month -> Date
         """
-        
-        yearDivToFind = setYearDivisionFormat(DTO.userFormat, date)
-        DTO = YearDivisionDTO(yearDivToFind, yearCell, timeColumn)
-        yearDivCell = getYearDivision(DTO)
-        monthCell = getMonthCell(DTO.userFormat, date, yearCell, yearDivCell)
-
-
+        rowCol2Start = time.perf_counter()
         rowToFind = monthCell["row"] + date.day # The first day is 2 rows after monthRow. (0-indexed)
-        sheetCache = loadJSON(SHEET_CACHE)
+        sheetCache = utls.loadJSON(CFG.SHEET_CACHE)
         sheetCache[DTO.userID]['activities'][activity]['checkinCell']['row'] = rowToFind
 
         # Map the activities, offset it based on monthCell, and save it to sheetCache
@@ -329,31 +156,34 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
                 sheetCache[DTO.userID]['activities'][activity]['checkinCell']['col'] = offset
             else:
                 raise ValueError(f"Activity '{activity}' not found")
-        saveJSON(sheetCache, SHEET_CACHE)
-            
-        # Request section        
-        compiledRequests = [] # To store all requests for batch update for later
-        for col in columnToFind:
-            CheckInOutsReq = { # Write 'ON PROGRESS' or 'DONE' to update cell (we used conditional formatting when making the table)
-                "requests": [
-                    {
-                        "updateCells": {
-                            "rows": [ 
-                                {"values": [{"userEnteredValue": {"stringValue": "ON PROGRESS"}}]}
-                            ],
-                            "fields": "userEnteredValue",
-                            "range": {
-                                "sheetId": worksheetID,
-                                "startRowIndex": rowToFind, # First row
-                                "endRowIndex": rowToFind + 1,
-                                "startColumnIndex": col, # Column D
-                                "endColumnIndex": col + 1,
-                            }
+        rowCol2End = time.perf_counter()
+        print(f"Sucessfully wrote {DTO.username}'s multiple checkinCell into sheetCache in {rowCol2End - rowCol2Start:.8f} seconds")
+        utls.saveJSON(sheetCache, CFG.SHEET_CACHE)
+    
+
+    # Request section        
+    compiledRequests = [] # To store all requests for batch update for later
+    for col in columnToFind:
+        CheckInOutsReq = { # Write 'ON PROGRESS' or 'DONE' to update cell (we used conditional formatting when making the table)
+            "requests": [
+                {
+                    "updateCells": {
+                        "rows": [ 
+                            {"values": [{"userEnteredValue": {"stringValue": "ON PROGRESS"}}]}
+                        ],
+                        "fields": "userEnteredValue",
+                        "range": {
+                            "sheetId": worksheetID,
+                            "startRowIndex": rowToFind, # First row
+                            "endRowIndex": rowToFind + 1,
+                            "startColumnIndex": col, # Column D
+                            "endColumnIndex": col + 1,
                         }
                     }
-                ]
-            }
-            compiledRequests.extend(CheckInOutsReq["requests"])
+                }
+            ]
+        }
+        compiledRequests.extend(CheckInOutsReq["requests"])
 
 
     if compiledRequests is not None:
@@ -372,22 +202,51 @@ def CheckIn(DTO: CheckInOutsDTO, chosen: list):
 def CheckOut(DTO: CheckInOutsDTO, chosen: list):
     commandStartTime = time.perf_counter()
 
-    timeCheckedIn = loadJSON(CHECKIN_FILE)
+    timeCheckedIn = utls.loadJSON(CFG.CHECKIN_FILE)
     timeCheckedOut = datetime.datetime.now()
     if DTO.userID not in timeCheckedIn:
         print("You haven't checked in! You should check-in first!")
         return
     
-    worksheet = SHEET.worksheet(DTO.username)
+    worksheet = sheetManager.get_worksheet(DTO.username)
     worksheetID = worksheet.id
 
     # Get rowToFind and columnToFind from sheetCache
-    sheetCache: dict = loadJSON(SHEET_CACHE)
-    compiledRequests = []
-    for activity in chosen:
-        rowToFind = sheetCache[DTO.userID]['activities'][activity]['checkinCell']['row']
-        columnToFind = sheetCache[DTO.userID]['activities'][activity]['checkinCell']['col']
+    sheetCache: dict = utls.loadJSON(CFG.SHEET_CACHE)
+    isSheetCacheBroken = False 
+    if DTO.userID not in sheetCache: # If somehow check-in failed to write sheetCache, we check-out via old way
+        isSheetCacheBroken = True
+        print(f"{DTO.username}'s sheetCache was empty, fetching rowToFind & colToFind the old way")
+        date = datetime.datetime.now()
+        yearCell = sheetManager.get_year_cell(DTO.user, date)
+        if DTO.user['format'] != 'Yearly':
+            yearDivCell = sheetManager.get_year_division_cell(yearCell, DTO.user, date)
+        else:
+            yearDivCell = None
+        monthCell = sheetManager.get_month_cell(DTO.user, date, yearCell, yearDivCell)
 
+        rowToFind = monthCell["row"] + date.day # The first day is 2 rows after monthRow. (0-indexed)
+        # Map the activities, offset it based on monthCell, and save it to sheetCache
+        activityIndex = {}
+        for index, activity in enumerate(DTO.userActivities):
+            activityIndex[activity] = index
+
+        columnToFind = []
+        for activity in chosen:
+            if activity in activityIndex:
+                baseIndex = activityIndex[activity]
+                offset = baseIndex + monthCell["col"] - 1         
+                columnToFind.append(offset)                
+            else:
+                raise ValueError(f"Activity '{activity}' not found")
+    else: # Use sheetCache from here
+        isSheetCacheBroken = False
+        for activity in chosen:
+            rowToFind = sheetCache[DTO.userID]['activities'][activity]['checkinCell']['row']
+            columnToFind = sheetCache[DTO.userID]['activities'][activity]['checkinCell']['col']
+
+    compiledRequests = []
+    for col in columnToFind:
         # Request section
         CheckOutReq = { #Write 'ON PROGRESS' or 'DONE' to update cell (we used conditional formatting when making the table) 
             "requests": [
@@ -399,10 +258,10 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
                         "fields": "userEnteredValue",
                         "range": {
                             "sheetId": worksheetID,
-                            "startRowIndex": rowToFind, # First row
+                            "startRowIndex": rowToFind, 
                             "endRowIndex": rowToFind + 1,
-                            "startColumnIndex": columnToFind, # Column D
-                            "endColumnIndex": columnToFind + 1,
+                            "startColumnIndex": col,
+                            "endColumnIndex": col + 1,
                         }
                     }
                 }
@@ -424,7 +283,7 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
     for activity in chosen:
         userTimeCheckedIn = datetime.datetime.fromisoformat(timeCheckedIn[DTO.userID]["activities"][activity])
         elapsedTime: timedelta = timeCheckedOut - userTimeCheckedIn
-        print(f"{DTO.username}'s {activity} elapsed time: {lockedInTime(elapsedTime)}")        
+        print(f"{DTO.username}'s {activity} elapsed time: {utls.lockedInTime(elapsedTime)}")
 
     # If user chooses to check out from all activities, remove the entire user's dict from the file
     checkedInActivities: list = timeCheckedIn[DTO.userID]["activities"]
@@ -433,36 +292,39 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
     else: # Otherwise, remove the specific activity key from the user's dict
         for activity in chosen: 
             timeCheckedIn[DTO.userID]["activities"].pop(activity)
-    saveJSON(timeCheckedIn, CHECKIN_FILE) # Save the updated dictionary back to the JSON file
+    utls.saveJSON(timeCheckedIn, CFG.CHECKIN_FILE) # Save the updated dictionary back to the JSON file
     print(f"{DTO.username} checked out locally for {chosen}")
 
     # Remove check-in cache
-    try:             
-        startCheckinCache = time.perf_counter()
-        # Delete activty dict from user   
-        if DTO.userFormat == 'Yearly':
-            del sheetCache[DTO.userID]
-        else: 
-            for activity in chosen:
-                print(f"Activity: {activity} checkinCell: {sheetCache[DTO.userID]['activities'][activity]['checkinCell']}")
-                del sheetCache[DTO.userID]['activities'][activity]
-        
-            # Activity check in sheetCache to see if user have checked out from all their activities
-            hasFullyCheckedOut = True
-            for activity in DTO.userActivities:
-                if activity in sheetCache[DTO.userID]['activities'].keys():
-                    hasFullyCheckedOut = False
-                    break
-            if hasFullyCheckedOut:
-                print(f"{DTO.username} with ID: {DTO.userID} has checked out from all their activities")
+    if DTO.userID in sheetCache:
+        try:             
+            startCheckinCache = time.perf_counter()
+            # Delete activty dict from user   
+            if DTO.userFormat == 'Yearly':
                 del sheetCache[DTO.userID]
-                endCheckinCache = time.perf_counter()
-                print(f"Succesfully deleted {DTO.username}'s {chosen} check-in cache in {endCheckinCache - startCheckinCache:8f} seconds")                
-            else:
-                print(f"{DTO.username} is not fully checked-out yet")
-        saveJSON(sheetCache, SHEET_CACHE)
-    except Exception as error:
-        print(f"An error has occured when deleting user's dict from sheet_cache {error}")
+            else: 
+                for activity in chosen:
+                    print(f"Activity: {activity} checkinCell: {sheetCache[DTO.userID]['activities'][activity]['checkinCell']}")
+                    del sheetCache[DTO.userID]['activities'][activity]
+            
+                # Activity check in sheetCache to see if user have checked out from all their activities
+                hasFullyCheckedOut = True
+                for activity in DTO.userActivities:
+                    if activity in sheetCache[DTO.userID]['activities'].keys():
+                        hasFullyCheckedOut = False
+                        break
+                if hasFullyCheckedOut:
+                    print(f"{DTO.username} with ID: {DTO.userID} has checked out from all their activities")
+                    del sheetCache[DTO.userID]
+                    endCheckinCache = time.perf_counter()
+                    print(f"Succesfully deleted {DTO.username}'s {chosen} check-in cache in {endCheckinCache - startCheckinCache:8f} seconds")                
+                else:
+                    print(f"{DTO.username} is not fully checked-out yet")
+            utls.saveJSON(sheetCache, CFG.SHEET_CACHE)
+        except Exception as error:
+            print(f"An error has occured when deleting user's dict from sheet_cache {error}")
+        else:
+            print(f"{DTO.username}'s sheet cache is already empty!")
     commandEndTime = time.perf_counter()
     print(f"Sucessfully executed check-out command in {commandEndTime - commandStartTime:.4f} seconds")   
 
@@ -470,8 +332,8 @@ def CheckOut(DTO: CheckInOutsDTO, chosen: list):
 def main():    
     """--------- MUST FILL!------------"""
 
-    userID = 880614022939041864
-    chosen: list = ["Animating", "Art Study"]
+    userID = 591939252061732900
+    chosen: list = ["Coding"]
 
     """--------- MUST FILL!------------"""
 
@@ -488,7 +350,6 @@ def main():
 
 
 if __name__ == "__main__" :
-    main()
-
+    main()    
 
     
