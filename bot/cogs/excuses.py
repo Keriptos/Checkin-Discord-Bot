@@ -9,9 +9,7 @@ from bot.services.sheetService import sheetManager
 # Other Imports
 import bot.helpers.utils as utls
 from bot.config_builder import ConfigDTO
-import typing
-import enum
-import datetime; from datetime import timedelta
+import datetime
 import time 
 
 # Globals
@@ -25,12 +23,14 @@ class LabelsMenu(discord.ui.Select):
         self.chosenActivity = activity
         self.userID: str = userID
         self.usersData: dict = utls.loadJSON(CFG.USERS_FILE)
-        self.username: str = self.usersData[userID]['username']
-        self.userFormat: str = self.usersData[userID]['format']
-        self.registeredActivity: list = self.usersData[userID]['activities']
-
-
-
+        try:
+            self.user = self.usersData[self.userID]
+            self.username: str = self.user['username']
+            self.userFormat: str = self.user['format']
+            self.registeredActivity: list = self.user['activities']
+        except KeyError:
+            raise KeyError(f"Local data lookup failed")
+        
         options = []
         # Manual option appending because I want custom descriptions
         options.append(
@@ -91,25 +91,20 @@ class LabelsMenu(discord.ui.Select):
         print(f"Got {self.username}'s worksheet")
 
         date = datetime.datetime.now()
-        try:
-            user = self.usersData[self.userID]
-        except KeyError:
-            print(f"{interaction.user} was not found in the local users file")
-            await interaction.followup.send(f"An error has occured!")
-            await interaction.followup.send(f"Your user profile was not found. If you had registered already, please DM the admin", ephemeral=True)
-        yearCell: dict = sheetManager.get_year_cell(user, date)
+       
+        yearCell: dict = sheetManager.get_year_cell(self.user, date)
 
         if self.userFormat == "Yearly":
             yearDivCell= None
-            monthCell = sheetManager.get_month_cell(user, date, yearCell, yearDivCell)
+            monthCell = sheetManager.get_month_cell(self.user, date, yearCell, yearDivCell)
 
             # Get rowToFind & columnToFind. Decrement by 1 afterwards so that it's 0-indexed
             rowToFind = (monthCell["row"] - 1) + date.day  # The first day is a row after monthRow. 
             columnToFind = monthCell["col"] - 1 # Since there's only 1 activity, columnToFind is just monthColumn
             
         else:
-            yearDivCell= sheetManager.get_year_division_cell(yearCell, user, date)
-            monthCell = sheetManager.get_month_cell(user, date, yearCell, yearDivCell)
+            yearDivCell= sheetManager.get_year_division_cell(yearCell, self.user, date)
+            monthCell = sheetManager.get_month_cell(self.user, date, yearCell, yearDivCell)
 
             # Get rowTofind & columnToFind. There's no need to decrement by 1
             rowToFind = monthCell["row"] + date.day # The first day is 2 rows after monthRow. (0-indexed)                                           
@@ -205,9 +200,9 @@ class Excuses(commands.Cog):
         ]
 
     # TODO: FIX EXCUSE CONFLICT WITH CHECKIN. Excuse could overwrite a cell, when the user is supposed to be done for that day.
-    @app_commands.command(name="test_excusesmenu", description="Fills in today's cell with the selected excuse")
+    @app_commands.command(name="excusesmenu", description="Fills in today's cell with the selected excuse")
     @app_commands.autocomplete(activity = excuse_autocomplete)
-    async def test_excuse(self, interaction: discord.Interaction, activity: str):
+    async def excuse(self, interaction: discord.Interaction, activity: str):
         userID = str(interaction.user.id)
         usersData = utls.loadJSON(CFG.USERS_FILE)
         try:
