@@ -80,11 +80,9 @@ class LabelsMenu(discord.ui.Select):
     
     async def callback(self, interaction: discord.Interaction):
         commandStartTime = time.perf_counter()
-        chosenExcuse: str = self.values[0] # User selected values will always be 1 element, which is a string
-        if len(chosenExcuse) == 1:
-            print(f"{self.username}'s excuse: {chosenExcuse}")
-        else:
-            print(f"{self.username}'s excuses: {chosenExcuse}")
+        chosenExcuse: str = self.values[0] # User selected values will always be 1 element, which is a string        
+        print(f"{self.username}'s excuse for {self.chosenActivity}: {chosenExcuse}")
+        
         
         await interaction.response.defer()
         print("Going to Sheets")
@@ -123,7 +121,7 @@ class LabelsMenu(discord.ui.Select):
                     activityIndex[activity] = index
                 
                 if self.chosenActivity in activityIndex:
-                    baseIndex = activityIndex[activity]
+                    baseIndex = activityIndex[self.chosenActivity]
                     offset = baseIndex + monthCell["col"] - 1       
                     columnToFind = offset
             
@@ -219,11 +217,15 @@ class Excuses(commands.Cog):
         userActivities: list = user['activities']
 
         if activity not in userActivities:
-            message = "The activity you've inputted doesn't match with your registered activit"                
+            message = "The activity you've inputted doesn't match with your registered activit"
+            localMessage = f"{interaction.user} inputted: ({activity}) and it doesn't match with their registered activit"
             if len(userActivities) == 1:
+                newLocalMessage = localMessage + 'y'
                 newMessage = message + 'y'
             else:
+                newLocalMessage = localMessage + 'ies'
                 newMessage = message + 'ies'
+            print(newLocalMessage)
             await interaction.response.send_message(newMessage)
 
         
