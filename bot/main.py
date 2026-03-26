@@ -5,9 +5,9 @@ from discord.ext import commands
 import os
 import asyncio
 from bot.services.sheetService import sheetManager
-from bot.config_builder import ConfigDTO
+from bot.config_builder import ConfigDTO as CFG
 
-CFG = ConfigDTO()
+
 bot = commands.Bot(command_prefix = None,  intents = discord.Intents.default()) # command_prefix is not needed for app commands
 
 @bot.event
