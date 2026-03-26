@@ -13,7 +13,6 @@ import datetime; from datetime import timedelta
 import time 
 
 # Globals
-SHEET = sheetManager.get_sheet_client()
 CFG = ConfigDTO()
 
 class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5 at once
