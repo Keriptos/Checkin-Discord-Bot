@@ -25,7 +25,7 @@ class SheetService:
             print(f"Initialized sheet client in {commandEndTime - commandStartTime:.4f} seconds")
         return self.sheet
     
-    
+        
     def force_load_worksheets(self) -> dict[str, Worksheet]:
         start = time.perf_counter()
         self.sheet = self.get_sheet_client()
@@ -36,16 +36,33 @@ class SheetService:
         print(f"Loaded all worksheets in {end-start:.8f} seconds")
         return self.worksheets
     
-    def get_worksheet(self, username) -> Worksheet:
-        if username not in self.worksheets: # Fetch all the users before trying to return their worksheet
+    def get_worksheet(self, worksheet_name) -> Worksheet:
+        if worksheet_name not in self.worksheets: # Fetch all the users before trying to return their worksheet
             self.worksheets = self.force_load_worksheets()
         
         # If it reached the exception, the user actually didn't register
-        try:            
-            return self.worksheets[username]
+        try:                    
+            return self.worksheets[worksheet_name]
         except KeyError:
-            raise gspread.WorksheetNotFound(f"{username}'s worksheet not found. User should register first!")
-        
+            raise gspread.WorksheetNotFound(f"{worksheet_name}'s worksheet not found. User should register first!")
+
+    """Make a better dynamic label fetching. As of now, it's hard-coded"""  
+    # def get_labels(self) -> list:
+    #     commandStartTime = time.perf_counter()
+    #     worksheet = self.get_worksheet("Template")
+    #     labels: list = worksheet.col_values(1)
+    #     try:
+    #         for i in range(0,4):                
+    #             labels.pop(0)
+    #         labels.pop(len(labels) - 1)
+    #         labels.pop(len(labels) - 1)
+    #     except Exception:
+    #         print("gk tau")
+    #     labels.sort()
+    #     commandEndTime = time.perf_counter()
+    #     print(f"Succesfully fetched labels in {commandEndTime - commandStartTime:.4f} seconds")
+    #     return labels
+
     
     def get_year_column(self, username: str) -> list[int | str | float | None]:
         if username not in self.year_column_cache:
@@ -173,7 +190,7 @@ class SheetService:
 sheetManager = SheetService()
 
 if __name__ == "__main__":
-    print(sheetManager.get_year_column('Cryptoz'))
+    print(sheetManager.get_year_column('kezizi'))
     
     usersData: dict = loadJSON(CFG.USERS_FILE)
     userID = str(591939252061732900)
@@ -182,4 +199,4 @@ if __name__ == "__main__":
     yearCell = sheetManager.get_year_cell(user, datetime.datetime.now())
     yearDivCell = None
     monthCell = sheetManager.get_month_cell(user, datetime.datetime.now(), yearCell, yearDivCell)
-    print(yearCell, yearDivCell, monthCell)
+    print(yearCell, yearDivCell, monthCell)    
