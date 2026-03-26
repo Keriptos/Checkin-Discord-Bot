@@ -63,7 +63,7 @@ def logToParticipants(date: datetime.datetime, username: str, activityList: list
     worksheet = sheetManager.get_worksheet("Participants")
     participantSheet_id = worksheet.id
 
-    nameColumn = worksheet.col_values(4) # 1-indexed
+    nameColumn = worksheet.col_values(1) # 1-indexed
     emptyRow = len(nameColumn) # 0-indexed. A cell after the last name cell will always be empty
     
     formattedDate = date.strftime("%d %B %Y")
@@ -73,15 +73,14 @@ def logToParticipants(date: datetime.datetime, username: str, activityList: list
         "rows": [
             {
                 "values": [
-                    {"userEnteredValue": {"stringValue": str(value)}}
-                    for value in rowUpdate
+                    {"userEnteredValue": {"stringValue": str(value)}} for value in rowUpdate
                 ]
             }
         ],
         "start": {
             "sheetId": participantSheet_id,
             "rowIndex": emptyRow,
-            "columnIndex": 3  # D column (0-indexed)
+            "columnIndex": 0  # A column (0-indexed
         },
         "fields": "userEnteredValue"
     }}
@@ -99,8 +98,8 @@ def logToParticipants(date: datetime.datetime, username: str, activityList: list
                 "sheetId": participantSheet_id,
                 "startRowIndex": emptyRow,
                 "endRowIndex": emptyRow + 1,
-                "startColumnIndex": 3,  # D
-                "endColumnIndex": 6     # F
+                "startColumnIndex": 0,  # A
+                "endColumnIndex": 2     # C (excluded)
             },
             "cell": {
                 "userEnteredFormat": {
@@ -121,8 +120,8 @@ def logToParticipants(date: datetime.datetime, username: str, activityList: list
                 "sheetId": participantSheet_id,
                 "startRowIndex": emptyRow,
                 "endRowIndex": emptyRow + 1,
-                "startColumnIndex": 6,  # G
-                "endColumnIndex": 12    # L
+                "startColumnIndex": 3,  # D column
+                "endColumnIndex": 8    # I column
             },
             "cell": {
                 "userEnteredFormat": {
@@ -137,7 +136,7 @@ def logToParticipants(date: datetime.datetime, username: str, activityList: list
             "fields": "userEnteredFormat"
         }
     }
-    SHEET.batch_update({"requests": [updateValuesReq, nameFormatReq, activityFormatReq]})
+    worksheet.spreadsheet.batch_update({"requests": [updateValuesReq, nameFormatReq, activityFormatReq]})
 
 def tableGeneration(date: datetime.datetime, userID: int, users: dict):
     registrationRequest = [] # A list to place all the request later on    
@@ -465,22 +464,21 @@ class Registration (commands.Cog):
         name: str = None
         ):
         print(f"{interaction.user.name} is trying to register")
-        commandStartTime = time.perf_counter() # To record how long the command takes to execute
+        commandStartTime = time.perf_counter()
         userID = str(interaction.user.id)
         usersData = utls.loadJSON(CFG.USERS_FILE)
         
         # Validations
         if userID in usersData:
             print(f"{interaction.user.name} has already registered! Stopping registration process.\n")
-            username = usersData[str(userID)]['username']
+            username = usersData[userID]['username']
             await interaction.response.send_message(f"{interaction.user.mention}, you are already registered as {username}!", ephemeral=True)
             return 
 
         # Checks if activity is valid
         if activity1 is None:
             await interaction.response.send_message("Please provide at least one activity to register with.", ephemeral=True)
-            return
-        
+            return    
         
         await interaction.response.defer()
         if name is None:
