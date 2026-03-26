@@ -12,14 +12,10 @@ bot = commands.Bot(command_prefix = None,  intents = discord.Intents.default()) 
 
 @bot.event
 async def on_ready():
-    print("Bot Ready!") 
-    
-    
+    print("Bot Ready!")         
     # Sync commands to the bot
     try :        
-        _GUILD_ID = discord.Object(id = CFG.GUILD_ID) # This is my server's ID, and I'm only gonna use it for my server
-
-    
+        _GUILD_ID = discord.Object(id = CFG.GUILD_ID) # This is my server's ID, and I'm only gonna use it for my server    
         syncedCommands = await bot.tree.sync(guild= _GUILD_ID) # It'll return a list of commands that had been synced
         print(f"Synced {len(syncedCommands)} commands.\n")        
     except Exception as error:
