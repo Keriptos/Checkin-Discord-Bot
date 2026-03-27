@@ -18,7 +18,7 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
         """A menu to select your activities up to 5 at once."""
         self.userID = userID
         self.usersData: dict = utls.loadJSON(CFG.USERS_FILE)
-        self.user = self.usersData[self.user]
+        self.user = self.usersData[self.userID]
         self.username: str = self.user['username']
         self.userFormat: str = self.user['format']    
 
