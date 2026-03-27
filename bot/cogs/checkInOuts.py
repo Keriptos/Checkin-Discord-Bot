@@ -20,11 +20,12 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
         """A menu to select your activities up to 5 at once."""
         self.userID = userID
         self.usersData: dict = utls.loadJSON(CFG.USERS_FILE)
-        self.username: str = self.usersData[userID]['username']
-        self.userFormat: str = self.usersData[userID]['format']    
+        self.user = self.usersData[self.userID]
+        self.username: str = self.user['username']
+        self.userFormat: str = self.user['format']    
 
         # Basically make a list of activities from user's registered activitiies
-        self.userActivities: list = self.usersData[userID]['activities']     
+        self.userActivities: list = self.user['activities']     
 
         activityOptions = [] # To store activities based on userID
         for activity in self.userActivities:
@@ -113,7 +114,7 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
 
          
         date = datetime.datetime.now()
-        yearCell = sheetManager.get_year_cell(self.usersData[self.userID], date)
+        yearCell = sheetManager.get_year_cell(self.user, date)
 
         # Set up check-in cache
         try:            
@@ -135,7 +136,7 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
             """
             # Get month
             yearDivCell = None
-            monthCell = sheetManager.get_month_cell(self.usersData[self.userID], date, yearCell, yearDivCell)
+            monthCell = sheetManager.get_month_cell(self.user, date, yearCell, yearDivCell)
 
 
             # Get rowToFind & columnToFind. Decrement by 1 afterwards so that it's 0-indexed
@@ -178,8 +179,8 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
 
             """
                     
-            yearDivCell = sheetManager.get_year_division_cell(yearCell, self.usersData[self.userID], date)            
-            monthCell = sheetManager.get_month_cell(self.userID, date, yearCell, yearDivCell)
+            yearDivCell = sheetManager.get_year_division_cell(yearCell, self.user, date)
+            monthCell = sheetManager.get_month_cell(self.user, date, yearCell, yearDivCell)
 
             try:
                 # Get rowTofind & columnToFind. There's no need to decrement by 1
@@ -269,9 +270,10 @@ class CheckoutMenu(discord.ui.Select):
         #Declarations to be locally used in the class
         self.userID = userID
         self.usersData: dict = utls.loadJSON(CFG.USERS_FILE)
-        self.username: str = self.usersData[userID]['username']
-        self.userFormat: str = self.usersData[userID]['format']
-        self.userActivities: list = self.usersData[userID]['activities']        
+        self.user = self.usersData[self.userID]
+        self.username: str = self.user['username']
+        self.userFormat: str = self.user['format']
+        self.userActivities: list = self.user['activities']        
 
 
         # Basically make a list out of the activity keys from checkintimes.json UNDER their usernames
