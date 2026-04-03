@@ -172,13 +172,19 @@ class SheetService:
         if userFormat == "Yearly":
             monthCell = {
             "row": yearCell["row"],
-            "col": 6 + (date.month - 1) 
+            "col": 6 + (date.month -  1)
         }
-        else:         
+        else:            
             userActivities = user['activities']            
-            monthCell = {
-            "row": yearDivCell["row"] if yearDivCell is not None else yearCell["row"] + 2,
-            "col": 6 + (len(userActivities) * (date.month - 1)) 
+            if "Semesterly" in userFormat:
+                monthCell = {
+                "row": yearDivCell["row"] if yearDivCell is not None else yearCell["row"] + 2,
+                "col": 6 + (len(userActivities) * ((date.month % 6) - 1))
+            }
+            else:
+                monthCell = {
+                "row": yearDivCell["row"] if yearDivCell is not None else yearCell["row"] + 2,
+                "col": 6 + (len(userActivities) * ((date.month % 3) - 1))
         }
         monthEnd = time.perf_counter()
         print(f"Completed monthCell search '{monthCell}' in {monthEnd - monthStart:.8f} seconds")
@@ -190,13 +196,13 @@ class SheetService:
 sheetManager = SheetService()
 
 if __name__ == "__main__":
-    print(sheetManager.get_year_column('kezizi'))
+    print(sheetManager.get_year_column('Drackoo'))
     
     usersData: dict = loadJSON(CFG.USERS_FILE)
-    userID = str(591939252061732900)
+    userID = str(689028638544494621)
     user = usersData[userID]
     
     yearCell = sheetManager.get_year_cell(user, datetime.datetime.now())
-    yearDivCell = None
+    yearDivCell = sheetManager.get_year_division_cell(yearCell, user, datetime.datetime.now())
     monthCell = sheetManager.get_month_cell(user, datetime.datetime.now(), yearCell, yearDivCell)
     print(yearCell, yearDivCell, monthCell)    
