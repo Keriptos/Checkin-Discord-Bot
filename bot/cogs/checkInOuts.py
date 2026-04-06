@@ -383,7 +383,38 @@ class CheckoutMenu(discord.ui.Select):
             compiledRequests.extend(CheckOutReq["requests"])
 
         else: # 2+ algorithm
-            # rowToFind & columnToFind fetching + request section 
+            # rowToFind & columnToFind fetching + request section
+            try:
+                for activity in chosen:
+                    rowToFind = sheetCache[self.userID]['activities'][activity]['checkinCell']['row']
+                    columnToFind = sheetCache[self.userID]['activities'][activity]['checkinCell']['col'] 
+            except KeyError:
+                print(f"{self.username}'s sheetCache was empty, fetching rowToFind & colToFind the old way")
+                date = datetime.datetime.now()
+                yearCell = sheetManager.get_year_cell(self.user, date)
+                if self.user['format'] != 'Yearly':
+                    yearDivCell = sheetManager.get_year_division_cell(yearCell, self.user, date)
+                    rowToFind = monthCell["row"] + date.day # The first day is 2 rows after monthRow. (0-indexed)
+                    # Map the activities, offset it based on monthCell, and save it to sheetCache
+                    activityIndex = {}
+                    for index, activity in enumerate(self.userActivities):
+                        activityIndex[activity] = index
+
+                    columnToFind = []
+                    for activity in chosen:
+                        if activity in activityIndex:
+                            baseIndex = activityIndex[activity]
+                            offset = baseIndex + monthCell["col"] - 1         
+                            columnToFind.append(offset)                
+                        else:
+                            raise ValueError(f"Activity '{activity}' not found")
+                else:
+                    yearDivCell = None
+                    monthCell = sheetManager.get_month_cell(self.user, date, yearCell, yearDivCell)
+                    rowToFind = (monthCell["row"] - 1) + date.day  # The first day is a row after monthRow. 
+                    columnToFind = monthCell['col'] - 1
+
+
             compiledRequests = []
             try:
                 for activity in chosen:
