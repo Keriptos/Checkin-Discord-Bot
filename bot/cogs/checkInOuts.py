@@ -530,8 +530,8 @@ class CheckInOuts(commands.Cog):
     async def on_ready(self):
         print(f"{__name__} is online!")
     
-    @app_commands.command(name = "test_checkinmenu", description = "Checks you in to the google sheet")
-    async def test_checkinMenu(self, interaction: discord.Interaction):
+    @app_commands.command(name = "checkinmenu", description = "Checks you in to the google sheet")
+    async def checkinMenu(self, interaction: discord.Interaction):
         userID = str(interaction.user.id)        
         usersData = utls.loadJSON(CFG.USERS_FILE)
         timeCheckedIn = utls.loadJSON(CFG.CHECKIN_FILE)     
@@ -553,8 +553,8 @@ class CheckInOuts(commands.Cog):
             await interaction.response.send_message(f"An error has occured: {error}", ephemeral=True)
 
 
-    @app_commands.command(name="test_checkoutmenu", description="Checks you out from the google sheet")
-    async def test_checkoutMenu(self, interaction: discord.Interaction):
+    @app_commands.command(name="checkoutmenu", description="Checks you out from the google sheet")
+    async def checkoutMenu(self, interaction: discord.Interaction):
         userID = str(interaction.user.id)
         usersData = utls.loadJSON(CFG.USERS_FILE)        
         timeCheckedIn: dict = utls.loadJSON(CFG.CHECKIN_FILE)

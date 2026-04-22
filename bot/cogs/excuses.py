@@ -209,7 +209,7 @@ class Excuses(commands.Cog):
         ]
 
     # TODO: FIX EXCUSE CONFLICT WITH CHECKIN. Excuse could overwrite a cell, when the user is supposed to be done for that day.
-    @app_commands.command(name="test_excusesmenu", description="Fills in today's cell with the selected excuse")
+    @app_commands.command(name="excusesmenu", description="Fills in today's cell with the selected excuse")
     @app_commands.autocomplete(
         activity1 = excuse_autocomplete,
         activity2 = excuse_autocomplete,
