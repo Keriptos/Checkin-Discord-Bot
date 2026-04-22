@@ -252,7 +252,7 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
             await interaction.followup.send(f"Error: {error}", ephemeral=True)
                         
 
-        await interaction.followup.send(f"{interaction.user.mention} has checked in to the sheets for {chosen}")
+        await interaction.followup.send(f"{interaction.user.mention} has checked in to the sheets for {', '.join(chosen)}")
         commandEndTime = time.perf_counter()
         print(f"Checkin executed in {commandEndTime - commandStartTime:.4f} seconds\n")
         

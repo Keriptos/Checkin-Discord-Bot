@@ -9,9 +9,7 @@ from bot.services.sheetService import sheetManager
 # Other Imports
 import bot.helpers.utils as utls
 from bot.config_builder import ConfigDTO
-import typing
-import enum
-import datetime; from datetime import timedelta
+import datetime
 import time 
 
 # Globals
@@ -25,11 +23,14 @@ class LabelsMenu(discord.ui.Select):
         self.chosenActivities: list = activities
         self.userID: str = userID
         self.usersData: dict = utls.loadJSON(CFG.USERS_FILE)
-        self.username: str = self.usersData[userID]['username']
-        self.userFormat: str = self.usersData[userID]['format']
-        self.registeredActivity: list = self.usersData[userID]['activities']
-
-
+        try:
+            self.user = self.usersData[self.userID]
+            self.username: str = self.user['username']
+            self.userFormat: str = self.user['format']
+            self.registeredActivity: list = self.user['activities']
+        except KeyError:
+            raise KeyError(f"Local data lookup failed")
+        
         options = []
         # Manual option appending because I want custom descriptions
         options.append(
@@ -101,15 +102,15 @@ class LabelsMenu(discord.ui.Select):
         yearCell: dict = sheetManager.get_year_cell(user, date)
         if self.userFormat == "Yearly":
             yearDivCell= None
-            monthCell = sheetManager.get_month_cell(user, date, yearCell, yearDivCell)
+            monthCell = sheetManager.get_month_cell(self.user, date, yearCell, yearDivCell)
 
             # Values are decremeneted by 1, so that it's 0-indexed
             rowToFind = (monthCell["row"] - 1) + date.day  # The first day is a row after monthRow.
             columnToFind: list = [monthCell["col"] - 1] # Made into a list so that ExcuseReq could be consistent with 2+ activities
             
         else:
-            yearDivCell= sheetManager.get_year_division_cell(yearCell, user, date)
-            monthCell = sheetManager.get_month_cell(user, date, yearCell, yearDivCell)
+            yearDivCell= sheetManager.get_year_division_cell(yearCell, self.user, date)
+            monthCell = sheetManager.get_month_cell(self.user, date, yearCell, yearDivCell)
 
             # There's no need to decrement by 1
             rowToFind = monthCell["row"] + date.day # The first day is 2 rows after monthRow. (0-indexed)                                           

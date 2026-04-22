@@ -52,6 +52,7 @@ class generalCommands(commands.Cog):
         commandStartTime = time.perf_counter() 
         time_checkedin = loadJSON(CFG.CHECKIN_FILE)
 
+
         if not members :
             await interaction.response.send_message("You must mention at least one member❗", ephemeral= True) #error mesage
             return  #returns nothing ~ as an error. Then the message above will appear only to you
