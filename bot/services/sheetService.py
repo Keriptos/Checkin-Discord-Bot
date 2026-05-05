@@ -179,7 +179,7 @@ class SheetService:
             if "Semesterly" in userFormat:
                 monthCell = {
                 "row": yearDivCell["row"] if yearDivCell is not None else yearCell["row"] + 2,
-                "col": 6 + (len(userActivities) * ((date.month- 1) % 6) - 1)
+                "col": 6 + (len(userActivities) * ((date.month- 1) % 6))
             }
             else:
                 monthCell = {
