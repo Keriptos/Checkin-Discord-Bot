@@ -217,7 +217,7 @@ class Excuses(commands.Cog):
         activity4 = excuse_autocomplete,
         activity5 = excuse_autocomplete
     )
-    async def test_excuse(
+    async def excuse(
         self, 
         interaction: discord.Interaction, 
         activity1: str,
@@ -259,7 +259,7 @@ class Excuses(commands.Cog):
                 await interaction.followup.send(f"The activities you've inputted doesn't match with your registered activities")
                 return         
 
-        await interaction.followup.send(f"Select your excuse for today's {valid}", view = LabelsMenuView(userID, valid))        
+        await interaction.followup.send(f"Select your excuse for today's {", ".join(valid)}", view = LabelsMenuView(userID, valid))        
 
 async def setup(bot: commands.Bot):
     _GUILD_ID = discord.Object(id = CFG.GUILD_ID)
