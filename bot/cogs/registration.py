@@ -35,18 +35,18 @@ def activityFormat(activities):
             return "Quarterly_Extended"
 
 
-def newUserSheetID(userID: str):
-    newSheetID = int(userID) % 1_000_000_000
+def newUserSheetID(userID: int):
+    newSheetID = userID % 1_000_000_000
     return newSheetID
 
 
 def templateSheetLayout(username: str, format: str): # All index are 0-based
     FORMATS = { # These are the static table locations that are in "Template" sheet, don't use this after copying once
-        "Yearly": (0, 34, 3, 17),    # yearly | 3 -> D column | 17 -> Q column (exclusive)
+        "Yearly": (0, 34, 3, 17),    # yearly | 3 -> D column | 17 -> R column (exclusive)        
         "Semesterly_Standard": (35, 70, 3, 17),   # semester
-        "Semesterly_Extended": (35, 70, 18, 38),  # semester (alternate) | 18 -> S column | 38 is AL column (exclusive)
+        "Semesterly_Extended": (35, 70, 18, 38),  # semester (alternate) | 18 -> S column | 38 is AM column (exclusive)
         "Quarterly_Standard": (71, 106, 3, 17),  # quarter
-        "Quarterly_Extended": (71, 106, 18, 35), # quarter (alternate) | 18 -> S column | 35 is AI column (exclusive)
+        "Quarterly_Extended": (71, 106, 18, 35), # quarter (alternate) | 18 -> S column | 35 is AJ column (exclusive)
     }
     startRow, endRow, startCol, endCol = FORMATS[format]
     data = {
@@ -138,15 +138,15 @@ def logToParticipants(date: datetime.datetime, username: str, activityList: list
     }
     worksheet.spreadsheet.batch_update({"requests": [updateValuesReq, nameFormatReq, activityFormatReq]})
 
-def tableGeneration(date: datetime.datetime, userID: int, users: dict):
+def tableGeneration(date: datetime.datetime, userID: int, user: dict):
     registrationRequest = [] # A list to place all the request later on    
     worksheet = sheetManager.get_worksheet("Template")
     templateSheetID = worksheet.id
 
     
-    username: str = users.get("username", "Unknown User")
-    userActivities: list = users.get("activities", [])
-    userFormat: str = users.get("format", "Format not found")
+    username: str = user.get("username", "Unknown User")
+    userActivities: list = user.get("activities", [])
+    userFormat: str = user.get("format", "Format not found")
 
 
     newSheetID = newUserSheetID(userID)
@@ -193,7 +193,7 @@ def tableGeneration(date: datetime.datetime, userID: int, users: dict):
                 "destination": {
                     "sheetId": newSheetID,
                     "startRowIndex": 0,
-                    "endRowIndex": 36, 
+                    "endRowIndex": 35, 
                     "startColumnIndex": 3, # D column
                     "endColumnIndex": 23, # W column (it's actually X column but it's excluded so it's W column)
                 },
@@ -203,8 +203,7 @@ def tableGeneration(date: datetime.datetime, userID: int, users: dict):
         }
     ]
 
-    replacements = [] # A list to rewrite common placeholders
-    activityRewrites  = [] # A list to rewrite activity placeholders
+    replacements = [] # A list to rewrite common placeholders    
     if userFormat == "Yearly":
         replacements.extend([
             {
@@ -239,7 +238,7 @@ def tableGeneration(date: datetime.datetime, userID: int, users: dict):
             }
             
         ])
-    elif userFormat != "Yearly":
+    else:
         # Rewrite the common placeholders
         replacements.extend([
             {
@@ -329,104 +328,11 @@ def tableGeneration(date: datetime.datetime, userID: int, users: dict):
         # Since this is registration, it'd be fixed
         # Rewrite the activity placeholders
         activityRow = 3
-        if userFormat == "Semesterly_Standard":
-            for col in range(5, 17): # Starts from column F, ends at column Q (col 16)          
-                if col % 2 == 1:
-                    selector = 0
-                else:
-                    selector = 1
-                activityRewrites.extend([{
-                    "updateCells": { 
-                        "rows": [
-                            {"values": [{"userEnteredValue": {"stringValue": f"{userActivities[selector]}"}}]} 
-                        ],
-                        "fields": "userEnteredValue",
-                        "range": {
-                            "sheetId": newSheetID,
-                            "startRowIndex": activityRow, 
-                            "endRowIndex": activityRow + 1,
-                            "startColumnIndex": col, 
-                            "endColumnIndex": col + 1,
-                        }
-                    }   
-                }])                
-        elif userFormat == "Semesterly_Extended":
-            for col in range(5, 23): # Starts from column F, ends at column W (col 22)       
-                if col % 3 == 2:
-                    selector = 0
-                elif col % 3 == 0:
-                    selector = 1
-                else :
-                    selector = 2
-                activityRewrites.extend([{
-                    "updateCells": { #Rewrite the activity placeholders
-                        "rows": [
-                            {"values": [{"userEnteredValue": {"stringValue": f"{userActivities[selector]}"}}]} 
-                        ],
-                        "fields": "userEnteredValue",
-                        "range": {
-                            "sheetId": newSheetID,
-                            "startRowIndex": activityRow, 
-                            "endRowIndex": activityRow + 1,
-                            "startColumnIndex": col, 
-                            "endColumnIndex": col + 1,
-                        }
-                    }   
-                }])
-        elif userFormat == "Quarterly_Standard":
-            for col in range(5, 17): # Starts from column F, ends at column Q (col 16)           
-                if col % 4 == 1:
-                    selector = 0
-                elif col % 4 == 2:
-                    selector = 1
-                elif col % 4 == 3: 
-                    selector = 2
-                else:
-                    selector = 3
-                activityRewrites.extend([{
-                    "updateCells": { # Rewrite the activity placeholders
-                        "rows": [
-                            {"values": [{"userEnteredValue": {"stringValue": f"{userActivities[selector]}"}}]} 
-                        ],
-                        "fields": "userEnteredValue",
-                        "range": {
-                            "sheetId": newSheetID,
-                            "startRowIndex": activityRow, 
-                            "endRowIndex": activityRow + 1,
-                            "startColumnIndex": col, 
-                            "endColumnIndex": col + 1,
-                        }
-                    }   
-                }])
-        elif userFormat == "Quarterly_Extended":
-            for col in range(5, 20): # Starts from column F, ends at column T (col 19)
-                if col % 5 == 0:
-                    selector = 0
-                elif col % 5 == 1:
-                    selector = 1
-                elif col % 5 == 2:
-                    selector = 2
-                elif col % 5 == 3: 
-                    selector = 3
-                elif col % 5 == 4:
-                    selector = 4
-                else:
-                    selector = 5
-                activityRewrites.extend([{
-                    "updateCells": { # Rewrite the activity placeholders
-                        "rows": [
-                            {"values": [{"userEnteredValue": {"stringValue": f"{userActivities[selector]}"}}]} 
-                        ],
-                        "fields": "userEnteredValue",
-                        "range": {
-                            "sheetId": newSheetID,
-                            "startRowIndex": activityRow, 
-                            "endRowIndex": activityRow + 1,
-                            "startColumnIndex": col, 
-                            "endColumnIndex": col + 1,
-                        }
-                    }   
-                }])
+        activityRewrites: list = utls.activity_rewrites(
+            newSheetID, 
+            user, 
+            utls.col_range_selector(user['format']), 
+            activityRow)        
         replacements.extend(activityRewrites)
 
 
@@ -434,6 +340,168 @@ def tableGeneration(date: datetime.datetime, userID: int, users: dict):
     registrationRequest.extend(tableSetup)
     return registrationRequest
 
+
+def copiesNeeded(date: datetime.datetime, userFormat: str) -> int:
+    if "Quarterly" in userFormat:
+        if date.month <= 3:
+            copiesNeeded = 3
+        elif date.month <= 6:
+            copiesNeeded = 2
+        elif date.month <= 9:
+            copiesNeeded = 1
+        else:
+            copiesNeeded = 0
+    elif "Semesterly" in userFormat:
+        if date.month <= 6:
+            copiesNeeded = 1
+        else:
+            copiesNeeded = 0
+    return copiesNeeded
+
+
+# TO-DO: Make duplication replacements for year division & month names
+def tableDuplication(date: datetime.datetime, userID: int, user: dict):
+    """ Duplicate table for non yearly table formats. Only used for registration"""
+
+    userFormat = user['format']
+    if userFormat == "Yearly": # Early exit, tableDuplication is not designed for Yearly as it is not needed
+        return ValueError(f"Not supported for {userFormat} format!")
+    
+    sheetID = newUserSheetID(userID)
+    userActivities = user['activities']
+    totalCopies = copiesNeeded(date, userFormat)
+
+    if totalCopies == 0:
+        print("No duplication needed!")
+        return
+
+    # Default values, all values here are 0-indexed
+    fullYear = (
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September","October", "November", "December"
+    )
+    fullYearDivision = (
+        "Semester 1", "Semester 2",
+        "Q1", "Q2", "Q3", "Q4"
+    )
+
+    # if userFormat == "Yearly":        
+    #     starDestRow = 35
+    #     endDestRow = 70
+    #     endCol = 17
+
+    if "Semesterly" in userFormat:
+        startMonth = 6 # Duplication continues after the 1st semester.
+        countEnder = 6
+        yearDivSelector = 1 # Semester 1 is not needed
+
+        if userFormat == "Semesterly_Standard":
+            endCol = 17
+        elif userFormat == "Semesterly_Extended":
+            endCol = 23
+
+    elif "Quarterly" in userFormat:
+        starDestRow = 36
+        endDestRow = 71
+        countEnder = 3
+
+        if userFormat == "Quarterly_Standard":
+            endCol = 17
+        elif userFormat == "Quarterly_Extended":
+            endCol = 20
+                
+        # Determine the month name rewrites
+        if date.month <= 3: # 3 copies
+            yearDivSelector = 3
+            startMonth = 3 # April
+        elif date.month <= 6: # 2 copies
+            yearDivSelector = 4 
+            startMonth = 6 # July
+        elif date.month <= 9: # 1 copy
+            yearDivSelector = 5
+            startMonth = 9 # October        
+                
+                
+    duplicationReq: list = []
+    while(totalCopies >= 1):
+        duplicationReq.extend([
+            {
+                "copyPaste": { # Copas table from current sheet
+                    "source": {
+                        "sheetId": sheetID,
+                        "startRowIndex": 0,
+                        "endRowIndex": 35,
+                        "startColumnIndex": 3,
+                        "endColumnIndex": endCol # Dynamic column, (it really doesn't matter but prevents a bad copy)
+                    },
+                    "destination": {
+                        "sheetId": sheetID,
+                        "startRowIndex": starDestRow,
+                        "endRowIndex": endDestRow, 
+                        "startColumnIndex": 3, 
+                        "endColumnIndex": endCol
+                    },
+                    "pasteType": "PASTE_NORMAL",
+                    "pasteOrientation": "NORMAL"
+                }
+            }
+        ])
+        # TO-DO: Do year division         
+        duplicationReq.extend([
+            {
+                "updateCells": { # Rewrite the month for duplication
+                    "rows": [
+                        {"values": [{"userEnteredValue": {"stringValue": fullYearDivision[yearDivSelector]}}]}
+                    ],
+                    "fields": "userEnteredValue",
+                    "range": {
+                        "sheetId": sheetID,
+                        "startRowIndex": starDestRow + 2, # Third row
+                        "endRowIndex": starDestRow + 3,
+                        "startColumnIndex": 3, # Column D
+                        "endColumnIndex": 4,
+                    }
+                }                    
+            }
+        ])
+                
+        for month in range(startMonth, startMonth + countEnder):
+            if "Semesterly" in userFormat:
+                monthIndex = 6 + (len(userActivities) * (month % 6)) - 1
+            else: 
+                monthIndex = 6 + (len(userActivities) * (month % 3)) - 1
+            duplicationReq.extend([
+                {
+                    "updateCells": { # Rewrite the month for duplication
+                        "rows": [
+                            {"values": [{"userEnteredValue": {"stringValue": f"{fullYear[month]}"}}]} 
+                        ],
+                        "fields": "userEnteredValue",
+                        "range": {
+                            "sheetId": sheetID,
+                            "startRowIndex": starDestRow + 2, # Third row
+                            "endRowIndex": starDestRow + 3,
+                            "startColumnIndex": monthIndex, # Column D
+                            "endColumnIndex": monthIndex + 1,
+                        }
+                    }                    
+                }
+            ])        
+
+        # Incrementation
+        totalCopies -= 1        
+        if userFormat == "Yearly":
+            starDestRow += 35 
+            endDestRow += 35
+        else:
+            starDestRow += 36
+            endDestRow += 36
+
+            yearDivSelector += 1
+            if "Quarterly" in userFormat:
+                startMonth += 3
+        
+    return duplicationReq    
 
 class Registration (commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -517,7 +585,7 @@ class Registration (commands.Cog):
             SHEET.batch_update({"requests": tableGeneration(                
                 date = datetime.datetime.now(),
                 userID = int(userID),
-                users= usersData.get(userID))})
+                user= usersData.get(userID))})
             processEndTime = time.perf_counter()
             print(f"Added {name}'s sheet in {processEndTime - processStartTime:.4f} seconds")
 
@@ -571,3 +639,12 @@ class Registration (commands.Cog):
 async def setup(bot: commands.Bot):    
     _GUILD_ID = discord.Object(id = CFG.GUILD_ID)
     await bot.add_cog(Registration(bot), guild = _GUILD_ID)
+
+if __name__ == "__main__":
+    user = utls.loadJSON(CFG.USERS_FILE)['461526727521206282']
+    # print(tableDuplication(datetime.datetime.now(), 461526727521206282, user))    
+    
+
+    req = tableGeneration(datetime.datetime.now(), 461526727521206282, user)
+    req.extend(tableDuplication(datetime.datetime.now(), 461526727521206282, user))
+    SHEET.batch_update({"requests": req})
