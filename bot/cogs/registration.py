@@ -282,8 +282,7 @@ def tableGeneration(date: datetime.datetime, userID: int, user: dict):
             activityRow)        
         common_replacements.extend(activityRewrites)
 
-        # TO-DO: Make the rewrite dynamic (both year division and month)
-        
+        # Time related rewrites
         time_related_rewrites: list = []
         fullYear = (
             "January", "February", "March", "April", "May", "June",
@@ -295,7 +294,7 @@ def tableGeneration(date: datetime.datetime, userID: int, user: dict):
             "Q1", "Q2", "Q3", "Q4"
         )
 
-        startMonth = 0 # Default value, if this stays 0, the loop for rewriting month won't execute
+        startMonth = 0 # Default value. If this stays 0, the loop for rewriting month won't execute
         if "Semesterly" in userFormat:            
             if date.month < 6:
                 yearDivSelector = 0
@@ -362,7 +361,7 @@ def tableGeneration(date: datetime.datetime, userID: int, user: dict):
 
 
     tableSetup.extend(common_replacements)
-    tableSetup.extend(time_related_rewrites)
+    if userFormat != "Yearly": tableSetup.extend(time_related_rewrites)
     registrationRequest.extend(tableSetup)
     return registrationRequest
 
@@ -408,12 +407,7 @@ def tableDuplication(date: datetime.datetime, userID: int, user: dict):
     fullYearDivision = (
         "Semester 1", "Semester 2",
         "Q1", "Q2", "Q3", "Q4"
-    )
-
-    # if userFormat == "Yearly":        
-    #     starDestRow = 35
-    #     endDestRow = 70
-    #     endCol = 17
+    )  
 
     if "Semesterly" in userFormat:
         startMonth = countEnder = 6 # Duplication continues after the 1st semester.        
@@ -663,12 +657,3 @@ class Registration (commands.Cog):
 async def setup(bot: commands.Bot):    
     _GUILD_ID = discord.Object(id = CFG.GUILD_ID)
     await bot.add_cog(Registration(bot), guild = _GUILD_ID)
-
-if __name__ == "__main__":
-    user = utls.loadJSON(CFG.USERS_FILE)['461526727521206282']
-    # print(tableDuplication(datetime.datetime.now(), 461526727521206282, user))    
-    
-
-    req = tableGeneration(datetime.datetime.now(), 461526727521206282, user)
-    req.extend(tableDuplication(datetime.datetime.now(), 461526727521206282, user))
-    SHEET.batch_update({"requests": req})
