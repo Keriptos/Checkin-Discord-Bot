@@ -203,9 +203,9 @@ def tableGeneration(date: datetime.datetime, userID: int, user: dict):
         }
     ]
 
-    replacements = [] # A list to rewrite common placeholders    
+    common_replacements = [] # A list to rewrite common placeholders    
     if userFormat == "Yearly":
-        replacements.extend([
+        common_replacements.extend([
             {
                 "updateCells": { #Rewrite the username placeholder to the user's username (D1)
                     "rows": [ 
@@ -240,7 +240,7 @@ def tableGeneration(date: datetime.datetime, userID: int, user: dict):
         ])
     else:
         # Rewrite the common placeholders
-        replacements.extend([
+        common_replacements.extend([
             {
                 "updateCells": { # Rewrite the year placeholder as today's year (D3)
                     "rows": [
@@ -272,60 +272,7 @@ def tableGeneration(date: datetime.datetime, userID: int, user: dict):
                 },
             }
         ])
-    
-        # Rewrite semester/quarter
-        if "Semesterly" in userFormat:
-            semesterTuple = ("Semester 1", "Semester 2")
-            if date.month < 6:
-                semesterSelector = 0
-            else :
-                semesterSelector = 1
-            replacements.extend([
-                {
-                    "updateCells": { # Rewrite the quarter placeholder as current semester (D3)
-                        "rows": [
-                            {"values": [{"userEnteredValue": {"stringValue": f"{semesterTuple[semesterSelector]}"}}]} 
-                        ],
-                        "fields": "userEnteredValue",
-                        "range": {
-                            "sheetId": newSheetID,
-                            "startRowIndex": 2, # Third row
-                            "endRowIndex": 3,
-                            "startColumnIndex": 3, # Column D
-                            "endColumnIndex": 4,
-                        }
-                    }
-                }
-            ])
-        elif "Quarterly" in userFormat:
-            quarterTuple = ("Q1", "Q2", "Q3", "Q4")
-            if date.month <= 3:
-                quarterSelector = 0
-            elif date.month > 3 and date.month <= 6:
-                quarterSelector = 1
-            elif date.month > 6 and date.month <= 9:                
-                quarterSelector = 2
-            else :
-                quarterSelector = 3
-            replacements.extend([
-                    {
-                        "updateCells": { #Rewrite the quarter placeholder as current semester (D3)
-                            "rows": [
-                                {"values": [{"userEnteredValue": {"stringValue": f"{quarterTuple[quarterSelector]}"}}]} 
-                            ],
-                            "fields": "userEnteredValue",
-                            "range": {
-                                "sheetId": newSheetID,
-                                "startRowIndex": 2, # Third row
-                                "endRowIndex": 3,
-                                "startColumnIndex": 3, # Column D
-                                "endColumnIndex": 4,
-                            }
-                        }
-                    }
-                ])
         
-        # Since this is registration, it'd be fixed
         # Rewrite the activity placeholders
         activityRow = 3
         activityRewrites: list = utls.activity_rewrites(
@@ -333,10 +280,89 @@ def tableGeneration(date: datetime.datetime, userID: int, user: dict):
             user, 
             utls.col_range_selector(user['format']), 
             activityRow)        
-        replacements.extend(activityRewrites)
+        common_replacements.extend(activityRewrites)
+
+        # TO-DO: Make the rewrite dynamic (both year division and month)
+        
+        time_related_rewrites: list = []
+        fullYear = (
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September","October", "November", "December"
+        )
+        
+        fullYearDivision = (
+            "Semester 1", "Semester 2",
+            "Q1", "Q2", "Q3", "Q4"
+        )
+
+        startMonth = 0 # Default value, if this stays 0, the loop for rewriting month won't execute
+        if "Semesterly" in userFormat:            
+            if date.month < 6:
+                yearDivSelector = 0
+            else :
+                yearDivSelector = 1
+                startMonth = countEnder = 6                
+        elif "Quarterly" in userFormat:
+            countEnder = 3
+
+            if date.month <= 3:
+                startMonth = 0
+                yearDivSelector = 2
+            elif date.month <= 6:
+                startMonth = 3
+                yearDivSelector = 3
+            elif date.month <= 9:         
+                startMonth = 6
+                yearDivSelector = 4
+            else :
+                yearDivSelector = 5
+
+        # Rewrite month
+        if startMonth != 0:
+            for month in range(startMonth, startMonth + countEnder):
+                if "Semesterly" in userFormat:
+                    monthIndex = 6 + (len(userActivities) * (month % 6)) - 1
+                else: 
+                    monthIndex = 6 + (len(userActivities) * (month % 3)) - 1
+                time_related_rewrites.extend([
+                    {
+                        "updateCells": {
+                            "rows": [
+                                {"values": [{"userEnteredValue": {"stringValue": f"{fullYear[month]}"}}]} 
+                            ],
+                            "fields": "userEnteredValue",
+                            "range": {
+                                "sheetId": newSheetID,
+                                "startRowIndex": 2, # Third row
+                                "endRowIndex": 3,
+                                "startColumnIndex": monthIndex, # Column D
+                                "endColumnIndex": monthIndex + 1,
+                            }
+                        }                    
+                    }
+                ])
+        # Rewrite year division (semester/quarter)
+        time_related_rewrites.extend([            
+            {
+                "updateCells": {
+                    "rows": [
+                        {"values": [{"userEnteredValue": {"stringValue": f"{fullYearDivision[yearDivSelector]}"}}]} 
+                    ],
+                    "fields": "userEnteredValue",
+                    "range": {
+                        "sheetId": newSheetID,
+                        "startRowIndex": 2, # Third row
+                        "endRowIndex": 3,
+                        "startColumnIndex": 3, # Column D
+                        "endColumnIndex": 4,
+                    }
+                }
+            }
+        ])
 
 
-    tableSetup.extend(replacements)
+    tableSetup.extend(common_replacements)
+    tableSetup.extend(time_related_rewrites)
     registrationRequest.extend(tableSetup)
     return registrationRequest
 
@@ -359,7 +385,6 @@ def copiesNeeded(date: datetime.datetime, userFormat: str) -> int:
     return copiesNeeded
 
 
-# TO-DO: Make duplication replacements for year division & month names
 def tableDuplication(date: datetime.datetime, userID: int, user: dict):
     """ Duplicate table for non yearly table formats. Only used for registration"""
 
@@ -391,8 +416,7 @@ def tableDuplication(date: datetime.datetime, userID: int, user: dict):
     #     endCol = 17
 
     if "Semesterly" in userFormat:
-        startMonth = 6 # Duplication continues after the 1st semester.
-        countEnder = 6
+        startMonth = countEnder = 6 # Duplication continues after the 1st semester.        
         yearDivSelector = 1 # Semester 1 is not needed
 
         if userFormat == "Semesterly_Standard":
@@ -446,7 +470,7 @@ def tableDuplication(date: datetime.datetime, userID: int, user: dict):
                 }
             }
         ])
-        # TO-DO: Do year division         
+              
         duplicationReq.extend([
             {
                 "updateCells": { # Rewrite the month for duplication
@@ -486,7 +510,7 @@ def tableDuplication(date: datetime.datetime, userID: int, user: dict):
                         }
                     }                    
                 }
-            ])        
+            ])
 
         # Incrementation
         totalCopies -= 1        
