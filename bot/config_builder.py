@@ -14,7 +14,7 @@ config.read(BASE_DIR / "config.ini")
 
 class ConfigDTO:
     """Put the file configs into objects"""
-    DISCORD_TOKEN   = os.getenv("TEST_BOT") # Change the token accordingly (main or test bot)
+    DISCORD_TOKEN   = os.getenv("DISCORD_TOKEN") # Change the token accordingly (main or test bot)
     GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID")
     GUILD_ID        = os.getenv("SERVER_ID")
     CREDS           = json.loads(os.getenv("CREDS"))
