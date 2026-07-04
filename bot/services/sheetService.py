@@ -1,7 +1,7 @@
 import time
 import datetime
 import gspread
-from gspread import Worksheet, Spreadsheet 
+from gspread import Worksheet, Spreadsheet
 from google.oauth2.service_account import Credentials
 from bot.helpers.utils import loadJSON, saveJSON
 from bot.config_builder import ConfigDTO
@@ -27,8 +27,9 @@ class SheetService:
     
         
     def force_load_worksheets(self) -> dict[str, Worksheet]:
+        self.sheet = self.get_sheet_client() # Load the sheet if it hasn't been loaded
+
         start = time.perf_counter()
-        self.sheet = self.get_sheet_client()
         worksheets = self.sheet.worksheets()
         for worksheet in worksheets:
             self.worksheets[worksheet.title] = worksheet
@@ -36,7 +37,7 @@ class SheetService:
         print(f"Loaded all worksheets in {end-start:.8f} seconds")
         return self.worksheets
     
-    def get_worksheet(self, worksheet_name) -> Worksheet:
+    def get_worksheet(self, worksheet_name: str) -> Worksheet:
         if worksheet_name not in self.worksheets: # Fetch all the users before trying to return their worksheet
             self.worksheets = self.force_load_worksheets()
         
