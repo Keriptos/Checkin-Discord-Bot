@@ -95,7 +95,7 @@ def col_selector(col: int, userFormat: str) -> int:
 def col_range_selector(userFormat: str):
     if userFormat == "Semesterly_Standard":
         return range(5,17)
-    elif userFormat == "Semestery_Extended":
+    elif userFormat == "Semesterly_Extended":
         return range(5,23)
     elif userFormat == "Quarterly_Standard":
         return range(5,17)
