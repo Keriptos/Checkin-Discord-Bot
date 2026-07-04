@@ -83,7 +83,7 @@ def col_selector(col: int, userFormat: str) -> int:
     """Does not support yearly activity"""
     if userFormat == "Semesterly_Standard":
         return semesterly_standard_selector(col)
-    elif userFormat == "Semestery_Extended":
+    elif userFormat == "Semesterly_Extended":
         return semesterly_extended_selector(col)
     elif userFormat == "Quarterly_Standard":
         return quarterly_standard_selector(col)
@@ -127,5 +127,5 @@ def activity_rewrites(sheetID: int, user: dict, col_range: range, activityRow: i
     return rewrites
 
 if __name__ == "__main__":
-    user = loadJSON(CFG.USERS_FILE)['461526727521206282']
+    user = loadJSON(CFG.USERS_FILE)['582370335886802964']
     print(activity_rewrites(521206282, user, col_range_selector(user['format']), 3))
