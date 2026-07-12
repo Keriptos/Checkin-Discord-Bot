@@ -1,6 +1,7 @@
-#Discord Imports
+# Discord Imports
 import discord
 from discord.ext import commands
+
 # Other Imports
 import os
 import asyncio
@@ -51,7 +52,7 @@ async def main():
     async with bot:
         await sheet_initializations()
         await load()
-        await bot.start(CFG.DISCORD_TOKEN)
+        await bot.start(os.getenv("DISCORD_TOKEN"))
 
     
 if __name__  == "__main__":
