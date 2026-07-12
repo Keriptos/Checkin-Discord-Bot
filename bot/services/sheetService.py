@@ -72,10 +72,10 @@ class SheetService:
             start = time.perf_counter()
             self.year_column_cache[username] = worksheet.col_values(4)
             end = time.perf_counter()
-            print(f"Year column cache was set-up in {end - start:.4f} seconds")
+            print(f"Year column cache was set-up in {end - start:.4f} seconds\n")
         return self.year_column_cache[username]
     
-    def get_year_cell(self, user: dict, date: datetime.datetime):
+    def get_year_cell(self, user: dict, date: datetime.datetime) -> dict[str, int]:
         processStartTime = time.perf_counter()
         
         userFormat = user['format']
@@ -116,7 +116,7 @@ class SheetService:
         return yearCell
     
     
-    def get_year_division_cell(self, yearCell: dict, user: dict, date: datetime.datetime): # Only used for 2+ activity
+    def get_year_division_cell(self, yearCell: dict, user: dict, date: datetime.datetime) -> dict[str, int]: # Only used for 2+ activity
         start = time.perf_counter()
         
         # Set the year division string 
@@ -165,7 +165,7 @@ class SheetService:
         print(f"Found yearDivisionCell '{yearDivToFind}': {yearDivisionCell} in {end - start:.8f} seconds")
         return yearDivisionCell
 
-    def get_month_cell(self, user: dict, date: datetime.datetime, yearCell: dict, yearDivCell: dict | None):
+    def get_month_cell(self, user: dict, date: datetime.datetime, yearCell: dict, yearDivCell: dict | None) -> dict[str, int]:
         # All values are 1 - indexed
         monthStart = time.perf_counter()
         userFormat = user['format']
