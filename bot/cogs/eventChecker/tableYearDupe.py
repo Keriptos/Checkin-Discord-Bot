@@ -76,7 +76,7 @@ def find_empty_cell_row(date: datetime.datetime, user: dict):
         if not foundYearDiv:
             raise ValueError(f"Year division {yearDivision} not found")
     end = time.perf_counter()
-    print(f"Found an empty cell (row: {empty_cell_row}) after existing table in {end - start:.8f} seconds")
+    print(f"Found an empty cell for {username} (row: {empty_cell_row}) after existing table in {end - start:.8f} seconds")
     return empty_cell_row
 
     
@@ -324,23 +324,30 @@ g_timeCheck = datetime.time(hour=0, minute=1, tzinfo= utc)
 
 
 class YearCheck(commands.Cog):
-    def __init__(self, bot: commands.Bot):        
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.is_end_of_year_check.start()
-        self.testing_time_check.start()
+        self.is_end_of_year_check.start()        
 
     def cog_unload(self):
-        self.is_end_of_year_check.cancel()
-        self.testing_time_check.cancel()
+        self.is_end_of_year_check.cancel()        
 
     @tasks.loop(time = g_timeCheck)
     async def is_end_of_year_check(self):
         now = datetime.datetime.now()
         if now.month == 12 and now.day == 31: # Check for end of year (31 Dec)
-            print("TRUE")
-        else:
-            print("FALSE")
-            print(f"Today's date: {now}")
+            print("It's end of the year!!!")
+            users = utls.loadJSON(CFG.USERS_FILE)
+            for target_user_id in users.keys():
+                start = time.perf_counter()
+                SHEET.batch_update({"requests": tableYearDupeReq(
+                    startCell = find_empty_cell_row(date = datetime.datetime.now(), user= users[target_user_id]),
+                    userID = int(target_user_id),
+                    user = users[target_user_id]
+                )})
+                end = time.perf_counter()
+                print(f"Duplicated table for {users[target_user_id]['username']} in {end - start:.4f} seconds\n")
+        elif now.month != 12 and now.day == 1:
+            print(f"table_year_dupe: {12 - now.month} months left")
         
     @is_end_of_year_check.before_loop
     async def before_is_end_of_year_check(self):
@@ -348,24 +355,14 @@ class YearCheck(commands.Cog):
         await self.bot.wait_until_ready()
 
 
-    @tasks.loop(seconds = 10)
-    async def testing_time_check(self):
-        users: dict = utls.loadJSON(CFG.USERS_FILE)
-        start = time.perf_counter()
-        SHEET.batch_update({"requests": tableYearDupeReq(
-            startCell = find_empty_cell_row(date = datetime.datetime.now(), user= users["591939252061732900"]),
-            userID = 591939252061732900,
-            user = users["591939252061732900"]
-        )})
-        end = time.perf_counter()
-        print(f"Duplicated table for {users["591939252061732900"]['username']} in {end - start:.4f} seconds")
-
-    @testing_time_check.before_loop
-    async def before_testing_time_check(self):
-        print("Waiting for bot to go online")
-        await self.bot.wait_until_ready()
-
 async def setup(bot: commands.Bot):
     GUILD_ID = discord.Object(id = CFG.GUILD_ID)
     await bot.add_cog(YearCheck(bot), guild= GUILD_ID)
 
+if __name__ == "__main__":
+    now = datetime.datetime.fromisoformat("2027-01-31 12:05:23.283")
+    if now.month == 12 and now.day == 31: # Check for end of year (31 Dec)
+        print("TRUE")
+    else:
+        print("FALSE")
+        print(f"Today's date: {now}")
