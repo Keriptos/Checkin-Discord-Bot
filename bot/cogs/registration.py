@@ -35,29 +35,6 @@ def activityFormat(activities):
             return "Quarterly_Extended"
 
 
-def newUserSheetID(userID: int):
-    newSheetID = userID % 1_000_000_000
-    return newSheetID
-
-
-def templateSheetLayout(username: str, format: str): # All index are 0-based
-    FORMATS = { # These are the static table locations that are in "Template" sheet, don't use this after copying once
-        "Yearly": (0, 34, 3, 17),    # yearly | 3 -> D column | 17 -> R column (exclusive)        
-        "Semesterly_Standard": (35, 70, 3, 17),   # semester
-        "Semesterly_Extended": (35, 70, 18, 38),  # semester (alternate) | 18 -> S column | 38 is AM column (exclusive)
-        "Quarterly_Standard": (71, 106, 3, 17),  # quarter
-        "Quarterly_Extended": (71, 106, 18, 35), # quarter (alternate) | 18 -> S column | 35 is AJ column (exclusive)
-    }
-    startRow, endRow, startCol, endCol = FORMATS[format]
-    data = {
-        username: {
-            "startRowIndex": startRow,
-            "endRowIndex": endRow,
-            "startColumnIndex": startCol,
-            "endColumnIndex": endCol,
-        }
-    }
-    return data
 
 def logToParticipants(date: datetime.datetime, username: str, activityList: list):    
     worksheet = sheetManager.get_worksheet("Participants")
@@ -149,8 +126,8 @@ def tableGeneration(date: datetime.datetime, userID: int, user: dict):
     userFormat: str = user.get("format", "Format not found")
 
 
-    newSheetID = newUserSheetID(userID)
-    templateUserLayout = templateSheetLayout(username, userFormat) 
+    newSheetID = utls.newUserSheetID(userID)
+    templateUserLayout = utls.templateSheetLayout(username, userFormat) 
     # All indexes from here are 0-indexed. startIndex are inclusive, endIndex are exclusive
     tableSetup = [ # This list is for sheet setup
         {
@@ -391,7 +368,7 @@ def tableDuplication(date: datetime.datetime, userID: int, user: dict):
     if userFormat == "Yearly": # Early exit, tableDuplication is not designed for Yearly as it is not needed
         return ValueError(f"Not supported for {userFormat} format!")
     
-    sheetID = newUserSheetID(userID)
+    sheetID = utls.newUserSheetID(userID)
     userActivities = user['activities']
     totalCopies = copiesNeeded(date, userFormat)
 

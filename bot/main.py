@@ -28,6 +28,16 @@ async def sheet_initializations():
 
 async def load():    
     print("Syncing cogs...")
+    # Load eventCheckers
+    for filename in os.listdir("./bot/cogs/eventChecker/"):
+        if filename.endswith(".py") and not filename.startswith("_"):
+            extensionName = f"bot.cogs.eventChecker.{filename[:-3]}" # ":-3" removes 3 characters (.py) starting from behind the filename
+            try: 
+                await bot.load_extension(extensionName)
+            except Exception as error:
+                print(f"Failed to load {extensionName}: {error}")
+    print("Synced event checkers!")
+    # Load command cogs
     for filename in os.listdir("./bot/cogs/"):
         if filename.endswith(".py") and not filename.startswith("_"):
             extensionName = f"bot.cogs.{filename[:-3]}" # ":-3" removes 3 characters (.py) starting from behind the filename
@@ -35,6 +45,7 @@ async def load():
                 await bot.load_extension(extensionName)
             except Exception as error:
                 print(f"Failed to load {extensionName}: {error}")
+    print("Synced command cogs!")
 
     
 async def main():
