@@ -386,7 +386,8 @@ class CheckoutMenu(discord.ui.Select):
                 brokenCache = True
                 print(f"{self.username}'s sheetCache was empty, fetching rowToFind & colToFind the old way")
 
-                date = datetime.datetime.now()                
+                date = datetime.datetime.now()
+                monthCell = sheetManager.get_month_cell(self.user, date)
                 rowToFind = monthCell["row"] + date.day # The first day is 2 rows after monthRow. (0-indexed)
 
                 # Map the activities, offset it based on monthCell, and save it to sheetCache
