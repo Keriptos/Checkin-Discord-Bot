@@ -179,7 +179,7 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
 
             try:
                 # Get rowTofind & columnToFind. There's no need to decrement by 1
-                rowToFind = monthCell["row"] + date.day # The first day is 2 rows after monthRow. (0-indexed)                                           
+                rowToFind = monthCell["row"] + date.day + 1 # The first day is 2 rows after monthRow. (0-indexed)                                           
 
                 # Map the activity, offset it based on monthCell, and write rowToFind & offset to sheetCache
                 activityIndex = {}
@@ -388,7 +388,7 @@ class CheckoutMenu(discord.ui.Select):
 
                 date = datetime.datetime.now()
                 monthCell = sheetManager.get_month_cell(self.user, date)
-                rowToFind = monthCell["row"] + date.day # The first day is 2 rows after monthRow. (0-indexed)
+                rowToFind = monthCell["row"] + date.day + 1 # The first day is 2 rows after monthRow. (0-indexed)
 
                 # Map the activities, offset it based on monthCell, and save it to sheetCache
                 activityIndex = {}
@@ -399,7 +399,7 @@ class CheckoutMenu(discord.ui.Select):
                 for activity in chosen:
                     if activity in activityIndex:
                         baseIndex = activityIndex[activity]
-                        offset = baseIndex + monthCell["col"] - 1         
+                        offset = baseIndex + monthCell["col"]        
                         columnToFind.append(offset)                
                     else:
                         raise ValueError(f"Activity '{activity}' not found")
