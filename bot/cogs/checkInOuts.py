@@ -137,8 +137,8 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
 
 
             # Get rowToFind & columnToFind. Decrement by 1 afterwards so that it's 0-indexed
-            rowToFind = (monthCell["row"] - 1) + date.day  # The first day is a row after monthRow. 
-            columnToFind = monthCell["col"] - 1 # Since there's only 1 activity, columnToFind is just monthColumn
+            rowToFind = (monthCell["row"]) + date.day  # The first day is a row after monthRow. 
+            columnToFind = monthCell["col"] # Since there's only 1 activity, columnToFind is just monthColumn
 
             # Write it to sheetCache
             for activity in chosen:                                
@@ -191,7 +191,7 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
                     sheetCache[self.userID]['activities'][activity]['checkinCell']['row'] = rowToFind
                     if activity in activityIndex:
                         baseIndex = activityIndex[activity]
-                        offset = baseIndex + monthCell["col"] - 1       
+                        offset = baseIndex + monthCell["col"]      
                         columnToFind.append(offset)
                         sheetCache[self.userID]['activities'][activity]['checkinCell']['col'] = offset
                     else:
@@ -348,8 +348,8 @@ class CheckoutMenu(discord.ui.Select):
                 print(f"{self.username}'s sheetCache was empty, fetching rowToFind & colToFind the old way")
                 date = datetime.datetime.now()                
                 monthCell = sheetManager.get_month_cell(self.user, date)
-                rowToFind = (monthCell["row"] - 1) + date.day  # The first day is a row after monthRow. 
-                columnToFind = monthCell["col"] - 1 # Since there's only 1 activity, columnToFind is just monthColumn
+                rowToFind = (monthCell["row"]) + date.day  # The first day is a row after monthRow. 
+                columnToFind = monthCell["col"] # Since there's only 1 activity, columnToFind is just monthColumn
             finally:
                 # Request section
                 compiledRequests = [] 
