@@ -38,9 +38,9 @@ class generalCommands(commands.Cog):
         print(f"Ping command executed in {commandEndTime - commandStartTime:0.4f} seconds\n") #Track how long the command takes to execute
 
 
-    @app_commands.command(name = "test_remind", description = "Mention members with an optional message")
+    @app_commands.command(name = "remind", description = "Mention members with an optional message")
     @app_commands.describe(members = "Select one or more members to mention", message = "Custom reminder message (optional)")
-    async def test_remind(
+    async def remind(
         self,
         interaction: discord.Interaction,
         members: discord.Member, 
