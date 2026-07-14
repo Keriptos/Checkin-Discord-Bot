@@ -114,8 +114,6 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
 
          
         date = datetime.datetime.now()
-        yearCell = sheetManager.get_year_cell(self.user, date)
-
         # Set up check-in cache
         try:            
             sheetCache = utls.loadJSON(CFG.SHEET_CACHE)   
@@ -134,8 +132,7 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
             """
             Year -> Month -> Date        
             """
-            # Get month
-            yearDivCell = None
+            # Get month (the year is already fetched within the month search function)
             monthCell = sheetManager.get_month_cell(self.user, date)
 
 
@@ -178,8 +175,6 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
             Year -> YearDiv -> Month -> Date
 
             """
-                    
-            yearDivCell = sheetManager.get_year_division_cell(self.user, date)
             monthCell = sheetManager.get_month_cell(self.user, date)
 
             try:
@@ -241,10 +236,7 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
             print(f"An error has occured when batch-updatin, {error}\n") 
 
             # Debug
-            print(f"User who failed to check-out: {interaction.user.name}, registered as {self.username} with ID: {self.userID}")
-            print(f"Year cell: {yearCell}")
-            if self.userFormat != "Yearly":
-                print(f"YearDivision cell: {yearDivCell}")
+            print(f"User who failed to check-out: {interaction.user.name}, registered as {self.username} with ID: {self.userID}")            
             print(f"Month cell: {monthCell}")
             print(f"rowToFind: {rowToFind}")
             print(f"columnToFind: {columnToFind}\n")
