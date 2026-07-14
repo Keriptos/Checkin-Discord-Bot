@@ -78,132 +78,158 @@ class SheetService:
     def get_year_cell(self, user: dict, date: datetime.datetime) -> dict[str, int]:
         processStartTime = time.perf_counter()
         
-        userFormat = user['format']
+        user_format = user['format']
         username = user['username']
 
-        if userFormat == "Yearly": 
-            yearCell = { # By default, it's D3 --> (1-indexed)
-                "row": 3,
-                "col": 4 
+        if user_format == "Yearly": 
+            year_cell = { # By default, it's D3 --> (0-indexed)
+                "row": 2,
+                "col": 3 
             }
         else:
-            yearCell = { # By default, it's D1 --> (1-indexed)
-                "row": 1,
-                "col": 4 
+            year_cell = { # By default, it's D1 --> (0-indexed)
+                "row": 0,
+                "col": 3 
             }
 
-        timeColumn = self.get_year_column(username)
+        time_column = self.get_year_column(username)
 
-        yearRow = yearCell["row"]
+        year_row = year_cell["row"]
         found = False   
-        while (yearRow <= len(timeColumn)):        
-            if (timeColumn[yearRow - 1] == str(date.year)): # the index was decremented by 1 so it's 0-indexed
-                yearCell['row'] = yearRow
+        while (year_row <= len(time_column)):        
+            if (time_column[year_row] == str(date.year)):
+                year_cell['row'] = year_row
                 found = True
                 break
 
             # Skip algorithm
-            if (userFormat == "Yearly"):
-                yearRow += 35
+            if (user_format == "Yearly"):
+                year_row += 35
             else :
-                yearRow += 36
+                year_row += 36
 
         if not found:
             raise ValueError(f"Year {date.year} not found")
         
         processEndTime = time.perf_counter()
-        print(f"Found yearCell '{yearCell}' in {processEndTime - processStartTime:.8f} seconds")
-        return yearCell
+        print(f"Found year_cell '{year_cell}' in {processEndTime - processStartTime:.8f} seconds")
+        return year_cell
     
     
-    def get_year_division_cell(self, yearCell: dict, user: dict, date: datetime.datetime) -> dict[str, int]: # Only used for 2+ activity
-        start = time.perf_counter()
-        
-        # Set the year division string 
+    def get_year_division_cell(self, user: dict, date: datetime.datetime) -> dict[str, int] | None:
+        """Used for 2+ activity. Returns None for Yearly format (1 activity)"""        
         username = user['username']
-        userFormat = user['format']
+        user_format = user['format']
+
+        if user_format == "Yearly":            
+            return None
+        
+
+        start = time.perf_counter()
+        # Set the year division string 
         # Semester 1 --> 1 2 3 4 5 6 | Semester 2 --> 7 8 9 10 11 12 (Numbers are in months)
-        if "Semesterly" in userFormat:
+        if "Semesterly" in user_format:
             if date.month <= 6: 
-                yearDivToFind = "Semester 1"
+                year_div_to_find = "Semester 1"
             else:
-                yearDivToFind = "Semester 2"
+                year_div_to_find = "Semester 2"
 
         # Q1 --> 1 2 3 | Q2 --> 4 5 6 | Q3 --> 7 8 9 | Q4 --> 10 11 12        
-        elif "Quarterly" in userFormat:
+        elif "Quarterly" in user_format:
             if date.month <= 3:
-                yearDivToFind = "Q1"
+                year_div_to_find = "Q1"
             elif date.month <= 6:
-                yearDivToFind = "Q2"
+                year_div_to_find = "Q2"
             elif date.month <= 9:
-                yearDivToFind = "Q3"
+                year_div_to_find = "Q3"
             else:
-                yearDivToFind = "Q4"
+                year_div_to_find = "Q4"
 
         
-        timeColumn: list = self.get_year_column(username)
-        yearDivisionCell = { # default values (1-indexed)
-            "row": yearCell["row"] + 2, 
-            "col": yearCell["col"]
+        time_column: list = self.get_year_column(username)
+        year_cell = self.get_year_cell(user=user, date= date)
+        year_division_cell = { # default values (0-indexed)
+            "row": year_cell["row"] + 2, 
+            "col": year_cell["col"]
         }
 
-        # Search the row of yearDivisionCell
+        # Search the row of year_division_cell
         found = False   
-        yearDivRow = yearDivisionCell["row"] 
-        while (yearDivRow <= len(timeColumn)):
-            if (timeColumn[yearDivRow - 1] == yearDivToFind): # The index is decremented by 1, so that it's 0-indexed
-                yearDivisionCell['row'] = yearDivRow
+        year_div_row = year_division_cell["row"] 
+        while (year_div_row <= len(time_column)):
+            if (time_column[year_div_row] == year_div_to_find):
+                year_division_cell['row'] = year_div_row
                 found = True
                 break
 
             # Skip algorithm
-            yearDivRow += 36
+            year_div_row += 36
         
         end = time.perf_counter()
         if not found:
-            raise ValueError(f"{yearDivToFind} not found")
-        print(f"Found yearDivisionCell '{yearDivToFind}': {yearDivisionCell} in {end - start:.8f} seconds")
-        return yearDivisionCell
+            raise ValueError(f"{year_div_to_find} not found")
+        print(f"Found year_division_cell '{year_div_to_find}': {year_division_cell} in {end - start:.8f} seconds")
+        return year_division_cell
 
-    def get_month_cell(self, user: dict, date: datetime.datetime, yearCell: dict, yearDivCell: dict | None) -> dict[str, int]:
-        # All values are 1 - indexed
+
+    def get_month_cell(self, user: dict, date: datetime.datetime) -> dict[str, int]:
+        # All values are 0 - indexed
         monthStart = time.perf_counter()
-        userFormat = user['format']
+        user_format = user['format']
         
-        if userFormat == "Yearly":
-            monthCell = {
-            "row": yearCell["row"],
-            "col": 6 + (date.month -  1)
+        year_cell: dict = self.get_year_cell(user, date)
+        year_division_cell: dict | None = None if user_format == "Yearly" else self.get_year_division_cell(user, date)
+        if user_format == "Yearly":
+            month_cell = {
+            "row": year_cell["row"],
+            "col": 5 + (date.month -  1)
         }
         else:            
             userActivities = user['activities']            
-            if "Semesterly" in userFormat:
-                monthCell = {
-                "row": yearDivCell["row"] if yearDivCell is not None else yearCell["row"] + 2,
-                "col": 6 + (len(userActivities) * ((date.month- 1) % 6))
+            if "Semesterly" in user_format:
+                month_cell = {
+                "row": year_division_cell["row"] if year_division_cell is not None else year_cell["row"] + 2,
+                "col": 5 + (len(userActivities) * ((date.month- 1) % 6))
             }
             else:
-                monthCell = {
-                "row": yearDivCell["row"] if yearDivCell is not None else yearCell["row"] + 2,
-                "col": 6 + (len(userActivities) * ((date.month - 1) % 3))
+                month_cell = {
+                "row": year_division_cell["row"] if year_division_cell is not None else year_cell["row"] + 2,
+                "col": 5 + (len(userActivities) * ((date.month - 1) % 3))
         }
         monthEnd = time.perf_counter()
-        print(f"Completed monthCell search '{monthCell}' in {monthEnd - monthStart:.8f} seconds")
-        return monthCell
+        print(f"Completed month_cell search '{month_cell}' in {monthEnd - monthStart:.8f} seconds")
+        return month_cell
 
+
+    def get_current_date_cell(self,date: datetime.datetime, user: dict, chosen: list) -> tuple[int, list[int]]:
+        """Returns a tuple with the format (row, col) | 0-indexed"""
+        user_format: str = user['format']
+        user_activities: list = user['activities']
+
+        # All values from these cells are (0-indexed)     
+        month_cell: dict = self.get_month_cell(user= user, date= date)
+
+        """Find row_to_find and col_to_find for the current date cell (0-indexed). Made col_to_find as a list so it's easier to manipulate"""
+        # Basically do nothing if yearly, else increment by 1 because the format is different by 1 cell
+        row_to_find: int = date.day + month_cell['row'] + (0 if user_format == "Yearly" else 1) 
+        if user_format == "Yearly":
+            col_to_find: list = [month_cell['col']]
+        else:
+            # Map the activity, offset it based on month_cell, and write rowToFind & offset to sheetCache
+            activity_index = {}
+            for index, activity in enumerate(user_activities):
+                activity_index[activity] = index
+
+            col_to_find: list = []
+            for activity in chosen:            
+                if activity in activity_index:
+                    base_index = activity_index[activity]
+                    offset = base_index + month_cell["col"]       
+                    col_to_find.append(offset)                
+                else:
+                    raise ValueError(f"Activity '{activity}' not found")
+        return row_to_find, col_to_find
 
 # To prevent making another class instance in any of the logic files, 
 # it's better to import the variable from this module
 sheetManager = SheetService()
-
-if __name__ == "__main__":
-    print(sheetManager.get_year_column('Drackoo'))
-    
-    usersData: dict = loadJSON(CFG.USERS_FILE)
-    userID = str(689028638544494621)
-    user = usersData[userID]
-    
-    yearCell = sheetManager.get_year_cell(user, datetime.datetime.now())
-    yearDivCell = sheetManager.get_year_division_cell(yearCell, user, datetime.datetime.now())
-    monthCell = sheetManager.get_month_cell(user, datetime.datetime.now(), yearCell, yearDivCell)
-    print(yearCell, yearDivCell, monthCell)    
