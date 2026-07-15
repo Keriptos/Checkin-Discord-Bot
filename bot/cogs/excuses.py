@@ -82,14 +82,7 @@ class LabelsMenu(discord.ui.Select):
         commandStartTime = time.perf_counter()
         chosenExcuse: str = self.values[0] # User selected values will always be 1 element, which is a string        
         print(f"{self.username}'s excuse for {self.chosenActivities}: {chosenExcuse}")
-        
-        try:
-            user = self.usersData[self.userID]
-        except KeyError:
-            print(f"{interaction.user} was not found in the local users file")
-            await interaction.followup.send(f"An error has occured!")
-            await interaction.followup.send(f"Your user profile was not found. If you had registered already, please DM the admin", ephemeral=True)
-            return 
+                 
         
         await interaction.response.defer()
         print("Going to Sheets")
@@ -99,38 +92,7 @@ class LabelsMenu(discord.ui.Select):
 
 
         date = datetime.datetime.now()
-        yearCell: dict = sheetManager.get_year_cell(user, date)
-        if self.userFormat == "Yearly":
-            yearDivCell= None
-            monthCell = sheetManager.get_month_cell(self.user, date, yearCell, yearDivCell)
-
-            # Values are decremeneted by 1, so that it's 0-indexed
-            rowToFind = (monthCell["row"] - 1) + date.day  # The first day is a row after monthRow.
-            columnToFind: list = [monthCell["col"] - 1] # Made into a list so that ExcuseReq could be consistent with 2+ activities
-            
-        else:
-            yearDivCell= sheetManager.get_year_division_cell(yearCell, self.user, date)
-            monthCell = sheetManager.get_month_cell(self.user, date, yearCell, yearDivCell)
-
-            # There's no need to decrement by 1
-            rowToFind = monthCell["row"] + date.day # The first day is 2 rows after monthRow. (0-indexed)                                           
-
-            # Map the activity, offset columnToFind based on monthCell with baseIndex from the activity map
-            try: 
-                activityIndex = {}
-                for index, activity in enumerate(self.registeredActivity):
-                    activityIndex[activity] = index
-                
-                columnToFind: list = []
-                for activity in self.chosenActivities:
-                    if activity in activityIndex:
-                        baseIndex = activityIndex[activity]
-                        offset = baseIndex + monthCell["col"] - 1       
-                        columnToFind.append(offset)
-            
-            except Exception as error:
-                print(f"An error occured when getting rowToFind or columnToFind, {error}")
-        
+        rowToFind, columnToFind = sheetManager.get_current_date_cell(date, self.user, self.chosenActivities)   
         # Request section
         compiledRequests = []
         for col in columnToFind:
@@ -166,11 +128,7 @@ class LabelsMenu(discord.ui.Select):
             print(f"An error has occured when batch-updatin, {error}\n") 
 
             # Debug
-            print(f"User who failed to check-out: {interaction.user.name}, registered as {self.username} with ID: {self.userID}")
-            print(f"Year cell: {yearCell}")
-            if self.userFormat != "Yearly":
-                print(f"YearDivision cell: {yearDivCell}")
-            print(f"Month cell: {monthCell}")
+            print(f"User who failed to check-out: {interaction.user.name}, registered as {self.username} with ID: {self.userID}")            
             print(f"rowToFind: {rowToFind}")
             print(f"columnToFind: {columnToFind}\n")
             await interaction.followup.send(f"Failed to check-in to sheets!")

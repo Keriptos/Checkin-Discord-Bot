@@ -116,40 +116,34 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
         date = datetime.datetime.now()
         # Set up check-in cache
         try:            
-            sheetCache = utls.loadJSON(CFG.SHEET_CACHE)   
+            sheetCache = utls.loadJSON(CFG.SHEET_CACHE)
             if self.userID not in sheetCache:
                 sheetCache[self.userID] = {}
                 sheetCache[self.userID]['username'] = self.username
                 sheetCache[self.userID]['activities'] = {}
             for activity in chosen:
                 sheetCache[self.userID]['activities'][activity] = {}
-                sheetCache[self.userID]['activities'][activity]['checkinCell'] = {}                    
+                sheetCache[self.userID]['activities'][activity]['checkinCell'] = {}                
             utls.saveJSON(sheetCache, CFG.SHEET_CACHE)            
         except Exception as error:
             print(f"An error has occured when setting up {interaction.user.name}'s sheetCache {error}")
-
-        if self.userFormat == "Yearly":  # Only 1 activity algorithm
-            """
-            Year -> Month -> Date        
-            """
-            # Get month (the year is already fetched within the month search function)
-            monthCell = sheetManager.get_month_cell(self.user, date)
-
-
-            # Get rowToFind & columnToFind. Decrement by 1 afterwards so that it's 0-indexed
-            rowToFind = (monthCell["row"]) + date.day  # The first day is a row after monthRow. 
-            columnToFind = monthCell["col"] # Since there's only 1 activity, columnToFind is just monthColumn
-
-            # Write it to sheetCache
-            for activity in chosen:                                
+        
+        # Get rowTofind & columnToFind. Then write it to sheetCache
+        rowToFind, columnToFind = sheetManager.get_current_date_cell(date, self.user, chosen)
+        try:
+            
+            for idx, activity in enumerate(chosen):
                 sheetCache[self.userID]['activities'][activity]['checkinCell']['row'] = rowToFind
-                sheetCache[self.userID]['activities'][activity]['checkinCell']['col'] = columnToFind
+                sheetCache[self.userID]['activities'][activity]['checkinCell']['col'] = columnToFind[idx]
             utls.saveJSON(sheetCache, CFG.SHEET_CACHE)
             print(f"Sucessfully wrote {interaction.user.name}'s check-in cache")
+        except Exception as error:
+            print(f"An error occured when getting rowToFind or columnToFind, {error}")
 
-            # Request section
-            compiledRequests = [] 
-            CheckInReq = { #Write ON PROGRESS to update cell (we used conditional formatting when making the table) | Check-in
+        # Request section
+        compiledRequests = [] 
+        for col in columnToFind:
+            CheckInReq = { # Write ON PROGRESS to update cell (we used conditional formatting when making the table)
                 "requests": [
                     {
                         "updateCells": {
@@ -161,69 +155,14 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
                                 "sheetId": worksheetID,
                                 "startRowIndex": rowToFind, # First row
                                 "endRowIndex": rowToFind + 1,
-                                "startColumnIndex": columnToFind, # Column D
-                                "endColumnIndex": columnToFind + 1,
+                                "startColumnIndex": col, # Column D
+                                "endColumnIndex": col + 1,
                             }
                         }
                     }
                 ]
             }
             compiledRequests.extend(CheckInReq["requests"])
-
-        else: # 2+ algorithm
-            """
-            Year -> YearDiv -> Month -> Date
-
-            """
-            monthCell = sheetManager.get_month_cell(self.user, date)
-
-            try:
-                # Get rowTofind & columnToFind. There's no need to decrement by 1
-                rowToFind = monthCell["row"] + date.day + 1 # The first day is 2 rows after monthRow. (0-indexed)                                           
-
-                # Map the activity, offset it based on monthCell, and write rowToFind & offset to sheetCache
-                activityIndex = {}
-                for index, activity in enumerate(self.userActivities):
-                    activityIndex[activity] = index
-
-                columnToFind = []
-                for activity in chosen:
-                    sheetCache[self.userID]['activities'][activity]['checkinCell']['row'] = rowToFind
-                    if activity in activityIndex:
-                        baseIndex = activityIndex[activity]
-                        offset = baseIndex + monthCell["col"]      
-                        columnToFind.append(offset)
-                        sheetCache[self.userID]['activities'][activity]['checkinCell']['col'] = offset
-                    else:
-                        raise ValueError(f"Activity '{activity}' not found")
-                utls.saveJSON(sheetCache, CFG.SHEET_CACHE)
-                print(f"Sucessfully wrote {interaction.user.name}'s check-in cache")
-            except Exception as error:
-                print(f"An error occured when getting rowToFind or columnToFind, {error}")
-
-            # Request section
-            compiledRequests = [] 
-            for col in columnToFind:
-                CheckInReq = { # Write ON PROGRESS to update cell (we used conditional formatting when making the table)
-                    "requests": [
-                        {
-                            "updateCells": {
-                                "rows": [ 
-                                    {"values": [{"userEnteredValue": {"stringValue": "ON PROGRESS"}}]}
-                                ],
-                                "fields": "userEnteredValue",
-                                "range": {
-                                    "sheetId": worksheetID,
-                                    "startRowIndex": rowToFind, # First row
-                                    "endRowIndex": rowToFind + 1,
-                                    "startColumnIndex": col, # Column D
-                                    "endColumnIndex": col + 1,
-                                }
-                            }
-                        }
-                    ]
-                }
-                compiledRequests.extend(CheckInReq["requests"])
 
         # Update to Sheets
         try:
@@ -237,7 +176,6 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
 
             # Debug
             print(f"User who failed to check-out: {interaction.user.name}, registered as {self.username} with ID: {self.userID}")            
-            print(f"Month cell: {monthCell}")
             print(f"rowToFind: {rowToFind}")
             print(f"columnToFind: {columnToFind}\n")
             await interaction.followup.send(f"Failed to check-in to sheets!")
@@ -334,26 +272,26 @@ class CheckoutMenu(discord.ui.Select):
         timeCheckedOut = datetime.datetime.now()                
         sheetCache = utls.loadJSON(CFG.SHEET_CACHE)
 
-        if self.userFormat == "Yearly":  # Only 1 activity algorithm
-            # Get rowToFind and columnToFind from sheetCache
-            brokenCache = False
-            try:
-                processStartTime = time.perf_counter()                
-                rowToFind = sheetCache[self.userID]['activities'][chosen[0]]['checkinCell']['row']
-                columnToFind = sheetCache[self.userID]['activities'][chosen[0]]['checkinCell']['col']
-                processEndTime = time.perf_counter()
-                print(f"Successfully gotten row and col from sheetCache in {processEndTime - processStartTime:.4f} seconds")
-            except KeyError:
-                brokenCache = True
-                print(f"{self.username}'s sheetCache was empty, fetching rowToFind & colToFind the old way")
-                date = datetime.datetime.now()                
-                monthCell = sheetManager.get_month_cell(self.user, date)
-                rowToFind = (monthCell["row"]) + date.day  # The first day is a row after monthRow. 
-                columnToFind = monthCell["col"] # Since there's only 1 activity, columnToFind is just monthColumn
-            finally:
-                # Request section
-                compiledRequests = [] 
-                CheckOutReq = { # Write DONE to update cell (we used conditional formatting when making the table) | Check-out
+
+        # rowToFind & columnToFind fetching + request section
+        brokenCache = False
+        compiledRequests: list | None = None
+        try:            
+            # throwaway data, just to check if it works or not
+            testRow = sheetCache[self.userID]['activities'][chosen[0]]['checkinCell']['row']
+            testCol = sheetCache[self.userID]['activities'][chosen[0]]['checkinCell']['col']
+            del testRow; del testCol            
+        except KeyError:
+            brokenCache = True
+            print(f"{self.username}'s sheetCache was empty, fetching rowToFind & colToFind the old way")
+
+            date = datetime.datetime.now()                
+            rowToFind, columnToFind = sheetManager.get_current_date_cell(date, self.user, chosen)
+            
+            # Request section        
+            compiledRequests = []
+            for col in columnToFind:
+                CheckInReq = { #Write ON PROGRESS to update cell (we used conditional formatting when making the table)
                     "requests": [
                         {
                             "updateCells": {
@@ -365,49 +303,22 @@ class CheckoutMenu(discord.ui.Select):
                                     "sheetId": worksheetID,
                                     "startRowIndex": rowToFind, # First row
                                     "endRowIndex": rowToFind + 1,
-                                    "startColumnIndex": columnToFind, # Column D
-                                    "endColumnIndex": columnToFind + 1,
+                                    "startColumnIndex": col, # Column D
+                                    "endColumnIndex": col + 1,
                                 }
                             }
                         }
                     ]
                 }
-                compiledRequests.extend(CheckOutReq["requests"])
-
-        else: # 2+ algorithm
-            # rowToFind & columnToFind fetching + request section
-            brokenCache = False
-            compiledRequests: list | None = None
+                compiledRequests.extend(CheckInReq["requests"])
+                
+        if not brokenCache:
+            compiledRequests = []
             try:
                 for activity in chosen:
                     rowToFind = sheetCache[self.userID]['activities'][activity]['checkinCell']['row']
-                    columnToFind = sheetCache[self.userID]['activities'][activity]['checkinCell']['col'] 
-            except KeyError:
-                brokenCache = True
-                print(f"{self.username}'s sheetCache was empty, fetching rowToFind & colToFind the old way")
-
-                date = datetime.datetime.now()
-                monthCell = sheetManager.get_month_cell(self.user, date)
-                rowToFind = monthCell["row"] + date.day + 1 # The first day is 2 rows after monthRow. (0-indexed)
-
-                # Map the activities, offset it based on monthCell, and save it to sheetCache
-                activityIndex = {}
-                for index, activity in enumerate(self.userActivities):
-                    activityIndex[activity] = index
-
-                columnToFind = []
-                for activity in chosen:
-                    if activity in activityIndex:
-                        baseIndex = activityIndex[activity]
-                        offset = baseIndex + monthCell["col"]        
-                        columnToFind.append(offset)                
-                    else:
-                        raise ValueError(f"Activity '{activity}' not found")
-                
-                # Request section        
-                compiledRequests = []
-                for col in columnToFind:
-                    CheckInReq = { #Write ON PROGRESS to update cell (we used conditional formatting when making the table)
+                    columnToFind = sheetCache[self.userID]['activities'][activity]['checkinCell']['col']
+                    CheckOutReq = { # Write DONE to update cell (we used conditional formatting when making the table) | Check-out
                         "requests": [
                             {
                                 "updateCells": {
@@ -419,43 +330,16 @@ class CheckoutMenu(discord.ui.Select):
                                         "sheetId": worksheetID,
                                         "startRowIndex": rowToFind, # First row
                                         "endRowIndex": rowToFind + 1,
-                                        "startColumnIndex": col, # Column D
-                                        "endColumnIndex": col + 1,
+                                        "startColumnIndex": columnToFind, # Column D
+                                        "endColumnIndex": columnToFind + 1,
                                     }
                                 }
                             }
                         ]
                     }
-                    compiledRequests.extend(CheckInReq["requests"])
-                    
-            if not brokenCache:
-                compiledRequests = []
-                try:
-                    for activity in chosen:
-                        rowToFind = sheetCache[self.userID]['activities'][activity]['checkinCell']['row']
-                        columnToFind = sheetCache[self.userID]['activities'][activity]['checkinCell']['col']
-                        CheckOutReq = { # Write DONE to update cell (we used conditional formatting when making the table) | Check-out
-                            "requests": [
-                                {
-                                    "updateCells": {
-                                        "rows": [ 
-                                            {"values": [{"userEnteredValue": {"stringValue": "DONE"}}]}
-                                        ],
-                                        "fields": "userEnteredValue",
-                                        "range": {
-                                            "sheetId": worksheetID,
-                                            "startRowIndex": rowToFind, # First row
-                                            "endRowIndex": rowToFind + 1,
-                                            "startColumnIndex": columnToFind, # Column D
-                                            "endColumnIndex": columnToFind + 1,
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                        compiledRequests.extend(CheckOutReq["requests"])                    
-                except Exception as error:
-                    print(f"An error occured when fetching rowToFind/columnToFind. {error}")
+                    compiledRequests.extend(CheckOutReq["requests"])                    
+            except Exception as error:
+                print(f"An error occured when fetching rowToFind/columnToFind. {error}")
 
         # Update to Sheets
         try:
