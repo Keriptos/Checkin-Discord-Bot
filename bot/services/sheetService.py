@@ -206,7 +206,8 @@ class SheetService:
         user_format: str = user['format']
         user_activities: list = user['activities']
 
-        # All values from these cells are (0-indexed)     
+        # All values from these cells are (0-indexed)
+        # The underlying process: Year -> YearDiv (If not yearly) -> Month -> Date
         month_cell: dict = self.get_month_cell(user= user, date= date)
 
         """Find row_to_find and col_to_find for the current date cell (0-indexed). Made col_to_find as a list so it's easier to manipulate"""
