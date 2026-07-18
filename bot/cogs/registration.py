@@ -13,6 +13,12 @@ import datetime
 # Globals
 SHEET = sheetManager.get_sheet_client()
 CFG = ConfigDTO()
+VALID_UTC_OFFSET = {
+            (-12,0), (-11,0),(-10,0),(-9,30),(-9,0),(-8,0),(-7,0),(-6,0),(-5,0), # 9 items
+            (-4,0),(-3,30),(-3,0),(-2,0),(-1,0),(0,0),(1,0),(2,0),(3,0),(3,30), # 10 items
+            (4,0),(4,30),(5,0),(5,30),(5,45),(6,0),(6,30),(7,0),(8,0),(8,45), # 10 items
+            (9,0),(9,30),(10,0),(10,30),(11,0),(12,0),(12,45),(13,0),(14,0) # 9 items
+}
 
 def activityFormat(activities):
     amountOfActivities = len(activities)
@@ -505,20 +511,26 @@ class Registration (commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print(f"{__name__} is ready!")
+    
 
-
-    @app_commands.command(name = "register", description = "Registers a new user onto the sheet")
+    @app_commands.command(name = "register", description = "Registers a new user onto the sheet")    
     @app_commands.describe(
         name = "A username to register with. Defaulted to your discord name",
         activity1 = "Your required first activity",
         activity2 = "Your second activity",
         activity3 = "Your third activity",
         activity4 = "Your fourth activity",
-        activity5 = "Your fifth activity")
+        activity5 = "Your fifth activity",
+        remind_time = "A reminder time. Type in the hour for you to be pinged at",
+        utc_hours = "UTC hour offset, Ranges from -12 to 14. If positive, omit the '+' sign.",
+        utc_minutes = "UTC minute offset. Only has 0, 30, and 45")
     
     async def register(
         self, 
         interaction: discord.Interaction,        
+        remind_time: int,
+        utc_hours: int,
+        utc_minutes: int,
         activity1: str,
         activity2: str = None,
         activity3: str = None,
@@ -536,19 +548,28 @@ class Registration (commands.Cog):
             print(f"{interaction.user.name} has already registered! Stopping registration process.\n")
             username = usersData[userID]['username']
             await interaction.response.send_message(f"{interaction.user.mention}, you are already registered as {username}!", ephemeral=True)
-            return 
+            return
 
-        # Checks if activity is valid
         if activity1 is None:
             await interaction.response.send_message("Please provide at least one activity to register with.", ephemeral=True)
-            return    
+            return
+                
+        if remind_time < 0 or remind_time > 23:
+            await interaction.response.send_message("Invalid hour! Please enter a valid hour.", ephemeral=True)
+            return
         
-        await interaction.response.defer()
+        user_utc_offset: tuple = (utc_hours, utc_minutes)
+        if user_utc_offset not in VALID_UTC_OFFSET:
+            await interaction.response.send_message("Invalid UTC offset! Please enter a valid UTC offset.", ephemeral= True)
+            return
+        
+        
+        await interaction.response.defer(thinking=True)
         if name is None:
             name = interaction.user.name
             await interaction.followup.send("Your username will be your discord username. Syncing...", ephemeral=True)
 
-
+        
         try:       
             temp: list = [activity1, activity2, activity3, activity4, activity5]
             activityList: list = sorted([activity.strip().capitalize() for activity in temp if activity is not None])            
@@ -558,7 +579,9 @@ class Registration (commands.Cog):
             usersData[userID] = {} # Make a new dict for the user
             usersData[userID]['username'] = name 
             usersData[userID]['activities'] = activityList 
-            usersData[userID]['format'] = activityFormat(activityList) 
+            usersData[userID]['format'] = activityFormat(activityList)
+            usersData[userID]['remind_at'] = remind_time
+            usersData[userID]['utc_offset'] = user_utc_offset #TO:DO Make a utc offset parser in utls         
             utls.saveJSON(usersData, CFG.USERS_FILE)
             processEndTime = time.perf_counter()
             print(f"Registered as {name} into the local logs in {processEndTime - processStartTime:.4f} seconds")
