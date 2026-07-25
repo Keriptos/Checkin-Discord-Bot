@@ -9,7 +9,7 @@ from bot.services.sheetService import sheetManager
 from bot.config_builder import ConfigDTO
 
 CFG = ConfigDTO()
-bot = commands.Bot(command_prefix = None,  intents = discord.Intents.default()) # command_prefix is not needed for app commands
+bot = commands.Bot(command_prefix = None,  intents = discord.Intents.all()) # command_prefix is not needed for app commands
 
 @bot.event
 async def on_ready():
