@@ -521,7 +521,7 @@ class Registration (commands.Cog):
         activity3 = "Your third activity",
         activity4 = "Your fourth activity",
         activity5 = "Your fifth activity",
-        remind_time = "A reminder time. Type in the hour for you to be pinged at",
+        remind_time = "A reminder time. Type in the hour for you to be pinged at. (24-hour format)",
         utc_hours = "UTC hour offset, Ranges from -12 to 14. If positive, omit the '+' sign.",
         utc_minutes = "UTC minute offset. Only has 0, 30, and 45")
     
@@ -558,7 +558,7 @@ class Registration (commands.Cog):
             await interaction.response.send_message("Invalid hour! Please enter a valid hour.", ephemeral=True)
             return
         
-        user_utc_offset: tuple = (utc_hours, utc_minutes)
+        user_utc_offset = list(utc_hours, utc_minutes)
         if user_utc_offset not in VALID_UTC_OFFSET:
             await interaction.response.send_message("Invalid UTC offset! Please enter a valid UTC offset.", ephemeral= True)
             return
@@ -581,7 +581,7 @@ class Registration (commands.Cog):
             usersData[userID]['activities'] = activityList 
             usersData[userID]['format'] = activityFormat(activityList)
             usersData[userID]['remind_at'] = remind_time
-            usersData[userID]['utc_offset'] = user_utc_offset #TO:DO Make a utc offset parser in utls         
+            usersData[userID]['utc_offset'] = user_utc_offset
             utls.saveJSON(usersData, CFG.USERS_FILE)
             processEndTime = time.perf_counter()
             print(f"Registered as {name} into the local logs in {processEndTime - processStartTime:.4f} seconds")
@@ -590,7 +590,7 @@ class Registration (commands.Cog):
 
         
         # Try to write to Google Sheet (Slow Process)
-        try:             
+        try:
             # Write the user onto the Participants worksheet
             processStartTime = time.perf_counter()
             logToParticipants(datetime.datetime.now(), name, activityList)
@@ -613,8 +613,8 @@ class Registration (commands.Cog):
             return 
         
         # Print success logs
-        print(f"{interaction.user.name} successfully registered as {name} with activities: {', '.join(activityList)}.")
-        await interaction.followup.send(f"{interaction.user.mention} successfully registered as {name} with activities: {", ".join(activityList)}.")
+        print(f"{interaction.user.name} successfully registered as {name} with activities: {', '.join(activityList)} with a reminder at {remind_time}:00 UTC {'+' if utc_hours >= 0 else ''}{utc_hours}:{utc_minutes}")
+        await interaction.followup.send(f"{interaction.user.mention} successfully registered as {name} with activities: {", ".join(activityList)} with a reminder at {remind_time}:00 UTC {'+' if utc_hours >= 0 else ''}{utc_hours}:{utc_minutes}")
         commandEndTime = time.perf_counter()
         print(f"Registration executed in {commandEndTime - commandStartTime:.4f} seconds\n")
 
