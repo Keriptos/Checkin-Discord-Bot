@@ -351,7 +351,7 @@ class YearCheck(commands.Cog):
         
     @is_end_of_year_check.before_loop
     async def before_is_end_of_year_check(self):
-        print('waiting...')
+        print('table_year_dupe background task is waiting...')
         await self.bot.wait_until_ready()
 
 
