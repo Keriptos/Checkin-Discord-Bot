@@ -125,7 +125,3 @@ def activity_rewrites(sheetID: int, user: dict, col_range: range, activityRow: i
             }
         })
     return rewrites
-
-if __name__ == "__main__":
-    user = loadJSON(CFG.USERS_FILE)['582370335886802964']
-    print(activity_rewrites(521206282, user, col_range_selector(user['format']), 3))
