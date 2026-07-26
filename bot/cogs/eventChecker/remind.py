@@ -32,6 +32,7 @@ class DailyRemind(commands.Cog):
         curr_time = datetime.datetime.now(tz=datetime.timezone.utc)
         curr_time_local = datetime.datetime.astimezone(curr_time) # Bot's local timezone
         print(f"Curr_time UTC = {curr_time}")
+        print(f"Local time = {curr_time_local}")
         defaultMessages = [
             "GET YOUR SHIT DONEEEE 🔥🔥❗❗ ",
             "Don't forget to do your thing ❗",
@@ -46,12 +47,12 @@ class DailyRemind(commands.Cog):
                 checkin_channel = self.bot.get_channel(1393987877599445115) # replace the channel id later
                 await checkin_channel.send(content=f"{role_to_ping.mention} {random.choice(defaultMessages)}")
                 end = time.perf_counter()
-                print(f"Reminder took {end-start:.8f} seconds")
+                print(f"Reminder took {end-start:.8f} seconds\n")
             else:
-                print(f"No one has this role, '{role_name}'")
-        except TypeError: # Could be triggered by the discord.utils.get() --> could return None or accessing members from a NoneType
-            print("Role does not exist")
-            print(curr_time.timetz, curr_time_local.timetz, role_name)            
+                print(f"No one has this role, '{role_name}'\n")
+        except Exception as error: # Could be triggered by the discord.utils.get() --> could return None or accessing members from a NoneType                    
+            print(curr_time, curr_time_local, role_name)
+            print(f"Role does not exist? | Error: {error}\n")
             
     @reminding.before_loop
     async def before_reminding(self):
