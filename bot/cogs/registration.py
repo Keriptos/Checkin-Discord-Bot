@@ -40,6 +40,14 @@ def activityFormat(activities):
         case 5:
             return "Quarterly_Extended"
 
+def convert_time_to_rolename(remind_time: str, utc_hours: int, utc_minutes: int) -> str:
+    """Converts the remind time from the user into a UTC+00:00 rolename as string"""
+    raw_time = datetime.datetime.strptime(remind_time, "%H:%M")
+    local_user_remind_time = raw_time.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=utc_hours, minutes=utc_minutes)))
+    user_remind_time = local_user_remind_time.astimezone(tz=datetime.timezone.utc)
+    
+    role_name = f"{'0' if user_remind_time.hour < 10 else ''}{user_remind_time.hour}:{user_remind_time.minute}{'0' if user_remind_time.minute == 0 else ''}"
+    return role_name
 
 
 def logToParticipants(date: datetime.datetime, username: str, activityList: list):    
@@ -542,7 +550,7 @@ class Registration (commands.Cog):
         commandStartTime = time.perf_counter()
         userID = str(interaction.user.id)
         usersData = utls.loadJSON(CFG.USERS_FILE)
-        
+
         # Validations
         if userID in usersData:
             print(f"{interaction.user.name} has already registered! Stopping registration process.\n")
@@ -558,7 +566,7 @@ class Registration (commands.Cog):
             await interaction.response.send_message("Invalid hour! Please enter a valid hour.", ephemeral=True)
             return
         
-        user_utc_offset = list(utc_hours, utc_minutes)
+        user_utc_offset: tuple = (utc_hours, utc_minutes)
         if user_utc_offset not in VALID_UTC_OFFSET:
             await interaction.response.send_message("Invalid UTC offset! Please enter a valid UTC offset.", ephemeral= True)
             return
@@ -570,10 +578,10 @@ class Registration (commands.Cog):
             await interaction.followup.send("Your username will be your discord username. Syncing...", ephemeral=True)
 
         
-        try:       
+        try:
             temp: list = [activity1, activity2, activity3, activity4, activity5]
-            activityList: list = sorted([activity.strip().capitalize() for activity in temp if activity is not None])            
-
+            activityList: list = sorted([activity.strip().capitalize() for activity in temp if activity is not None])
+            
             # Write the data to local file
             processStartTime = time.perf_counter()
             usersData[userID] = {} # Make a new dict for the user
@@ -610,7 +618,17 @@ class Registration (commands.Cog):
         except Exception as error:
             print(f"An error has occured, {error}")
             await interaction.followup.send(f"An error has occurred, {error}", ephemeral=True)
-            return 
+            return
+
+        # Assign the user their time role
+        try:
+            role_name = convert_time_to_rolename(usersData[userID]['remind_at'], utc_hours, utc_minutes)        
+            time_role = discord.utils.get(interaction.guild.roles, name=role_name)
+            await interaction.user.add_roles(time_role)
+            print(f"Successfully assigned {role_name} role to {interaction.user.name}")
+        except Exception as error:
+            print(f"Idk | {error}")
+                    
         
         # Print success logs
         print(f"{interaction.user.name} successfully registered as {name} with activities: {', '.join(activityList)} with a reminder at {remind_time}:00 UTC {'+' if utc_hours >= 0 else ''}{utc_hours}:{utc_minutes}")

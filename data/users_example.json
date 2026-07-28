@@ -4,6 +4,12 @@
         "activities": [
             "Activity1"
         ], 
-        "format": "Yearly" 
+        "format": "Yearly",
+        "registered_at": "Day_Of_Registration_Here",
+        "remind_at": "NumberHere",
+        "utc_offset": [
+            "UTC_HOUR_OFFSET_HERE",
+            "UTC_MINUTE_OFFSET_HERE"
+        ]
     }
 }
