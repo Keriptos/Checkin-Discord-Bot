@@ -40,9 +40,9 @@ def activityFormat(activities):
         case 5:
             return "Quarterly_Extended"
 
-def convert_time_to_rolename(remind_time: str, utc_hours: int, utc_minutes: int) -> str:
+def convert_time_to_rolename(remind_time: int, utc_hours: int, utc_minutes: int) -> str:
     """Converts the remind time from the user into a UTC+00:00 rolename as string"""
-    raw_time = datetime.datetime.strptime(remind_time, "%H:%M")
+    raw_time = datetime.datetime.strptime(f"{remind_time}:00", "%H:%M")
     local_user_remind_time = raw_time.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=utc_hours, minutes=utc_minutes)))
     user_remind_time = local_user_remind_time.astimezone(tz=datetime.timezone.utc)
     

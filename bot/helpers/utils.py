@@ -125,12 +125,3 @@ def activity_rewrites(sheetID: int, user: dict, col_range: range, activityRow: i
             }
         })
     return rewrites
-
-def convert_time_to_rolename(remind_time: str, utc_hours: int, utc_minutes: int) -> str:
-    """Converts the remind time from the user into a UTC+00:00 rolename as string"""
-    raw_time = datetime.datetime.strptime(remind_time, "%H:%M")
-    local_user_remind_time = raw_time.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=utc_hours, minutes=utc_minutes)))
-    user_remind_time = local_user_remind_time.astimezone(tz=datetime.timezone.utc)
-    
-    role_name = f"{'0' if user_remind_time.hour < 10 else ''}{user_remind_time.hour}:{user_remind_time.minute}{'0' if user_remind_time.minute == 0 else ''}"
-    return role_name
