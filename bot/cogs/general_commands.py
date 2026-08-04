@@ -10,7 +10,7 @@ import time
 import random
 
 CFG = ConfigDTO()
-class generalCommands(commands.Cog):
+class GeneralCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -60,8 +60,15 @@ class generalCommands(commands.Cog):
             "GET YOUR SHIT DONEEEE 🔥🔥❗❗ ",
             "Don't forget to do your thing ❗",
             "You know what time it is? 👀",
-            "Get yo ass up an GET YOUR SHIT DONE ❗❗"
-
+            "Get yo ass up and GET YOUR SHIT DONE ❗❗",
+            "'1 more match', that's what they all say...🙄",
+            "Stop doomscrolling.",
+            "You know you need to get a JOB later right❓",
+            "LOCK IN TWINNN ❗❗❗",
+            "Remember what you signed up for ❗",
+            "Is it worth skipping today's work and double it to tomorrow ❓"
+            "Your future self will thank you",
+            "Let this be the push you need"
         ]
         
         checkin_messages = [
@@ -87,7 +94,7 @@ class generalCommands(commands.Cog):
     
 async def setup(bot: commands.Bot):
     _GUILD_ID = discord.Object(id = CFG.GUILD_ID)
-    await bot.add_cog(generalCommands(bot), guild = _GUILD_ID)
+    await bot.add_cog(GeneralCommands(bot), guild = _GUILD_ID)
 
 
    
