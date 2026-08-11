@@ -1,4 +1,3 @@
-import datetime; import time
 from bot.config_builder import ConfigDTO
 import json
 import os
@@ -125,3 +124,60 @@ def activity_rewrites(sheetID: int, user: dict, col_range: range, activityRow: i
             }
         })
     return rewrites
+
+def make_copy_paste_req(
+        source_sheet_id: int,
+        origin_start_row: int, 
+        origin_end_row: int, 
+        origin_start_col: int, 
+        origin_end_col: int, 
+        dest_sheet_id: int,
+        dest_start_row: int, 
+        dest_end_row: int,
+        dest_start_col: int, 
+        dest_end_col: int) -> dict:
+    req = {
+        "copyPaste": {
+            "source": {
+                "sheetId": source_sheet_id, 
+                "startRowIndex": origin_start_row,
+                "endRowIndex": origin_end_row, 
+                "startColumnIndex": origin_start_col, 
+                "endColumnIndex": origin_end_col,
+            },
+            "destination": {
+                "sheetId": dest_sheet_id,
+                "startRowIndex": dest_start_row,
+                "endRowIndex": dest_end_row,
+                "startColumnIndex": dest_start_col,
+                "endColumnIndex": dest_end_col,
+            },
+            "pasteType": "PASTE_NORMAL",
+            "pasteOrientation": "NORMAL"
+        }
+    }
+    return req
+
+def make_update_cells__str_req(
+        source_sheet_id: int,
+        start_row: int, 
+        end_row: int, 
+        start_col: int, 
+        end_col: int,
+        value: str) -> dict:
+    req = {
+        "updateCells": {
+            "rows": [
+                {"values": [{"userEnteredValue": {"stringValue": value}}]}
+            ],
+            "fields": "userEnteredValue",
+            "range": {
+                "sheetId": source_sheet_id,
+                "startRowIndex": start_row,
+                "endRowIndex": end_row,
+                "startColumnIndex": start_col,
+                "endColumnIndex": end_col
+            }
+        },
+    }
+    return req
