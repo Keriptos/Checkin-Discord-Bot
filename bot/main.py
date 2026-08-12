@@ -5,7 +5,7 @@ from discord.ext import commands
 # Other Imports
 import os
 import asyncio
-from bot.services.sheetService import sheetManager
+from bot.services.sheet_service import sheetManager
 from bot.config_builder import ConfigDTO
 
 CFG = ConfigDTO()
@@ -29,9 +29,9 @@ async def sheet_initializations():
 async def load():    
     print("Syncing cogs...")
     # Load eventCheckers
-    for filename in os.listdir("./bot/cogs/eventChecker/"):
+    for filename in os.listdir("./bot/cogs/event_checker/"):
         if filename.endswith(".py") and not filename.startswith("_"):
-            extensionName = f"bot.cogs.eventChecker.{filename[:-3]}" # ":-3" removes 3 characters (.py) starting from behind the filename
+            extensionName = f"bot.cogs.event_checker.{filename[:-3]}" # ":-3" removes 3 characters (.py) starting from behind the filename
             try: 
                 await bot.load_extension(extensionName)
             except Exception as error:
