@@ -1,7 +1,7 @@
 #Google Sheets Related Imports
 from gspread import Worksheet
 from gspread_formatting import *
-from bot.services.sheetService import sheetManager
+from bot.services.sheet_service import sheetManager
 
 #Other Imports
 import datetime

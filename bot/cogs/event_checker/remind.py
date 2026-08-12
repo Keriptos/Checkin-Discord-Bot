@@ -37,7 +37,15 @@ class DailyRemind(commands.Cog):
             "GET YOUR SHIT DONEEEE 🔥🔥❗❗ ",
             "Don't forget to do your thing ❗",
             "You know what time it is? 👀",
-            "Get yo ass up an GET YOUR SHIT DONE ❗❗"                
+            "Get yo ass up and GET YOUR SHIT DONE ❗❗",
+            "'1 more match', that's what they all say...🙄",
+            "Stop doomscrolling.",
+            "You know you need to get a JOB later right❓",
+            "LOCK IN TWINNN ❗❗❗",
+            "Remember what you signed up for ❗",
+            "Is it worth skipping today's work and double it to tomorrow ❓"
+            "Your future self will thank you",
+            "Let this be the push you need"
         ]
         guild = self.bot.get_guild(CFG.GUILD_ID)
         role_name = f"{'0' if curr_time.hour < 10 else ''}{curr_time.hour}:{curr_time.minute}{'0' if curr_time.minute == 0 else ''}"

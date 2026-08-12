@@ -4,7 +4,7 @@ from discord import app_commands
 from discord.ext import commands
 
 # Google Sheets Related Imports
-from bot.services.sheetService import sheetManager
+from bot.services.sheet_service import sheetManager
 
 # Other Imports
 import bot.helpers.utils as utls
