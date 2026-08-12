@@ -4,7 +4,7 @@ from discord import app_commands
 from discord.ext import commands
 
 # Google Sheets Related Imports
-from bot.services.sheetService import sheetManager
+from bot.services.sheet_service import sheetManager
 
 # Other Imports
 import bot.helpers.utils as utls
@@ -128,41 +128,30 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
         except Exception as error:
             print(f"An error has occured when setting up {interaction.user.name}'s sheetCache {error}")
         
-        # Get rowTofind & columnToFind. Then write it to sheetCache
-        rowToFind, columnToFind = sheetManager.get_current_date_cell(date, self.user, chosen)
+        # Get row_to_find & col_to_find. Then write it to sheetCache
+        row_to_find, col_to_find = sheetManager.get_current_date_cell(date, self.user, chosen)
         try:
             
             for idx, activity in enumerate(chosen):
-                sheetCache[self.userID]['activities'][activity]['checkinCell']['row'] = rowToFind
-                sheetCache[self.userID]['activities'][activity]['checkinCell']['col'] = columnToFind[idx]
+                sheetCache[self.userID]['activities'][activity]['checkinCell']['row'] = row_to_find
+                sheetCache[self.userID]['activities'][activity]['checkinCell']['col'] = col_to_find[idx]
             utls.saveJSON(sheetCache, CFG.SHEET_CACHE)
             print(f"Sucessfully wrote {interaction.user.name}'s check-in cache")
         except Exception as error:
-            print(f"An error occured when getting rowToFind or columnToFind, {error}")
+            print(f"An error occured when getting row_to_find or col_to_find, {error}")
 
         # Request section
         compiledRequests = [] 
-        for col in columnToFind:
-            CheckInReq = { # Write ON PROGRESS to update cell (we used conditional formatting when making the table)
-                "requests": [
-                    {
-                        "updateCells": {
-                            "rows": [ 
-                                {"values": [{"userEnteredValue": {"stringValue": "ON PROGRESS"}}]}
-                            ],
-                            "fields": "userEnteredValue",
-                            "range": {
-                                "sheetId": worksheetID,
-                                "startRowIndex": rowToFind, # First row
-                                "endRowIndex": rowToFind + 1,
-                                "startColumnIndex": col, # Column D
-                                "endColumnIndex": col + 1,
-                            }
-                        }
-                    }
-                ]
-            }
-            compiledRequests.extend(CheckInReq["requests"])
+        for col in col_to_find:             
+            compiledRequests.extend([ # Write ON PROGRESS to update cell (we used conditional formatting when making the table)
+                utls.make_update_cells__str_req(
+                    source_sheet_id = worksheetID,
+                    start_row = row_to_find,
+                    end_row = row_to_find + 1,
+                    start_col = col,
+                    end_col = col + 1,
+                    value ="ON PROGRESS"
+                )])
 
         # Update to Sheets
         try:
@@ -176,8 +165,8 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
 
             # Debug
             print(f"User who failed to check-out: {interaction.user.name}, registered as {self.username} with ID: {self.userID}")            
-            print(f"rowToFind: {rowToFind}")
-            print(f"columnToFind: {columnToFind}\n")
+            print(f"row_to_find: {row_to_find}")
+            print(f"col_to_find: {col_to_find}\n")
             await interaction.followup.send(f"Failed to check-in to sheets!")
             await interaction.followup.send(f"Error: {error}", ephemeral=True)
                         
@@ -273,7 +262,7 @@ class CheckoutMenu(discord.ui.Select):
         sheetCache = utls.loadJSON(CFG.SHEET_CACHE)
 
 
-        # rowToFind & columnToFind fetching + request section
+        # row_to_find & col_to_find fetching + request section
         brokenCache = False
         compiledRequests: list | None = None
         try:            
@@ -283,63 +272,42 @@ class CheckoutMenu(discord.ui.Select):
             del testRow; del testCol            
         except KeyError:
             brokenCache = True
-            print(f"{self.username}'s sheetCache was empty, fetching rowToFind & colToFind the old way")
+            print(f"{self.username}'s sheetCache was empty, fetching row_to_find & colToFind the old way")
 
             date = datetime.datetime.now()                
-            rowToFind, columnToFind = sheetManager.get_current_date_cell(date, self.user, chosen)
+            row_to_find, col_to_find = sheetManager.get_current_date_cell(date, self.user, chosen)
             
             # Request section        
             compiledRequests = []
-            for col in columnToFind:
-                CheckInReq = { #Write ON PROGRESS to update cell (we used conditional formatting when making the table)
-                    "requests": [
-                        {
-                            "updateCells": {
-                                "rows": [ 
-                                    {"values": [{"userEnteredValue": {"stringValue": "DONE"}}]}
-                                ],
-                                "fields": "userEnteredValue",
-                                "range": {
-                                    "sheetId": worksheetID,
-                                    "startRowIndex": rowToFind, # First row
-                                    "endRowIndex": rowToFind + 1,
-                                    "startColumnIndex": col, # Column D
-                                    "endColumnIndex": col + 1,
-                                }
-                            }
-                        }
-                    ]
-                }
-                compiledRequests.extend(CheckInReq["requests"])
+            for col in col_to_find:
+                compiledRequests.extend([ # Write DONE to update cell (we used conditional formatting when making the table)
+                    utls.make_update_cells__str_req(
+                        source_sheet_id = worksheetID,
+                        start_row = row_to_find,
+                        end_row = row_to_find + 1,
+                        start_col = col,
+                        end_col = col + 1,
+                        value ="DONE"
+                    )])                
                 
         if not brokenCache:
             compiledRequests = []
             try:
                 for activity in chosen:
-                    rowToFind = sheetCache[self.userID]['activities'][activity]['checkinCell']['row']
-                    columnToFind = sheetCache[self.userID]['activities'][activity]['checkinCell']['col']
-                    CheckOutReq = { # Write DONE to update cell (we used conditional formatting when making the table) | Check-out
-                        "requests": [
-                            {
-                                "updateCells": {
-                                    "rows": [ 
-                                        {"values": [{"userEnteredValue": {"stringValue": "DONE"}}]}
-                                    ],
-                                    "fields": "userEnteredValue",
-                                    "range": {
-                                        "sheetId": worksheetID,
-                                        "startRowIndex": rowToFind, # First row
-                                        "endRowIndex": rowToFind + 1,
-                                        "startColumnIndex": columnToFind, # Column D
-                                        "endColumnIndex": columnToFind + 1,
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                    compiledRequests.extend(CheckOutReq["requests"])                    
+                    row_to_find = sheetCache[self.userID]['activities'][activity]['checkinCell']['row']
+                    col_to_find = sheetCache[self.userID]['activities'][activity]['checkinCell']['col']                    
+                    compiledRequests.extend([ # Write DONE to update cell (we used conditional formatting when making the table) | Check-out
+                        utls.make_update_cells__str_req(
+                            source_sheet_id = worksheetID,
+                            start_row = row_to_find,
+                            end_row = row_to_find + 1,
+                            start_col = col_to_find,
+                            end_col = col_to_find + 1,
+                            value ="DONE"
+                        )
+                    ])
             except Exception as error:
-                print(f"An error occured when fetching rowToFind/columnToFind. {error}")
+                print(f"An error occured when fetching row_to_find/col_to_find. {error}")
 
         # Update to Sheets
         try:
@@ -353,8 +321,8 @@ class CheckoutMenu(discord.ui.Select):
             # Debug
             print(f"An error has occured when batch-updatin, {error}\n")
             print(f"User who failed to check-out: {interaction.user.name}, registered as {self.username} with ID: {self.userID}")                            
-            print(f"rowToFind: {rowToFind}")
-            print(f"columnToFind: {columnToFind}\n")
+            print(f"row_to_find: {row_to_find}")
+            print(f"col_to_find: {col_to_find}\n")
 
             await interaction.followup.send(f"Failed to check-out from sheets!")
             await interaction.followup.send(f"Error: {error}", ephemeral=True) 
