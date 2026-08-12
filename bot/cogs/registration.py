@@ -2,7 +2,7 @@
 import discord 
 from discord import app_commands
 from discord.ext import commands
-from bot.services.sheetService import sheetManager
+from bot.services.sheet_service import sheetManager
 
 # Other Imports
 import bot.helpers.utils as utls
@@ -14,21 +14,21 @@ import datetime
 SHEET = sheetManager.get_sheet_client()
 CFG = ConfigDTO()
 VALID_UTC_OFFSET = {
-            (-12,0), (-11,0),(-10,0),(-9,30),(-9,0),(-8,0),(-7,0),(-6,0),(-5,0), # 9 items
-            (-4,0),(-3,30),(-3,0),(-2,0),(-1,0),(0,0),(1,0),(2,0),(3,0),(3,30), # 10 items
-            (4,0),(4,30),(5,0),(5,30),(5,45),(6,0),(6,30),(7,0),(8,0),(8,45), # 10 items
-            (9,0),(9,30),(10,0),(10,30),(11,0),(12,0),(12,45),(13,0),(14,0) # 9 items
+    (-12,0), (-11,0),(-10,0),(-9,30),(-9,0),(-8,0),(-7,0),(-6,0),(-5,0), # 9 items
+    (-4,0),(-3,30),(-3,0),(-2,0),(-1,0),(0,0),(1,0),(2,0),(3,0),(3,30), # 10 items
+    (4,0),(4,30),(5,0),(5,30),(5,45),(6,0),(6,30),(7,0),(8,0),(8,45), # 10 items
+    (9,0),(9,30),(10,0),(10,30),(11,0),(12,0),(12,45),(13,0),(14,0) # 9 items
 }
 
-def activityFormat(activities):
-    amountOfActivities = len(activities)
+def determine_activity_format(activities: list):
+    total_act = len(activities)
 
     # Activities must be between 1 and 5
-    if amountOfActivities < 1 or amountOfActivities > 5:
+    if total_act < 1 or total_act > 5:
         raise ValueError("Invalid number of activities. Must be between 1 and 5.")
     
     # Determine the format based on the activities total
-    match amountOfActivities:
+    match total_act:
         case 1: 
             return "Yearly"
         case 2:
@@ -49,85 +49,6 @@ def convert_time_to_rolename(remind_time: int, utc_hours: int, utc_minutes: int)
     role_name = f"{'0' if user_remind_time.hour < 10 else ''}{user_remind_time.hour}:{user_remind_time.minute}{'0' if user_remind_time.minute == 0 else ''}"
     return role_name
 
-
-def logToParticipants(date: datetime.datetime, username: str, activityList: list):    
-    worksheet = sheetManager.get_worksheet("Participants")
-    participantSheet_id = worksheet.id
-
-    nameColumn = worksheet.col_values(1) # 1-indexed
-    emptyRow = len(nameColumn) # 0-indexed. A cell after the last name cell will always be empty
-    
-    formattedDate = date.strftime("%d %B %Y")
-    rowUpdate = [username, formattedDate, ""] + activityList
-    updateValuesReq = {
-    "updateCells": {
-        "rows": [
-            {
-                "values": [
-                    {"userEnteredValue": {"stringValue": str(value)}} for value in rowUpdate
-                ]
-            }
-        ],
-        "start": {
-            "sheetId": participantSheet_id,
-            "rowIndex": emptyRow,
-            "columnIndex": 0  # A column (0-indexed
-        },
-        "fields": "userEnteredValue"
-    }}
-
-    # Border format
-    solidBorders = {
-        "top" :{"style": "SOLID"},
-        "bottom" :{"style": "SOLID"},
-        "left" :{"style": "SOLID"},
-        "right" :{"style": "SOLID"}
-    }
-    nameFormatReq = {
-        "repeatCell": {
-            "range": {
-                "sheetId": participantSheet_id,
-                "startRowIndex": emptyRow,
-                "endRowIndex": emptyRow + 1,
-                "startColumnIndex": 0,  # A
-                "endColumnIndex": 2     # C (excluded)
-            },
-            "cell": {
-                "userEnteredFormat": {
-                    "horizontalAlignment": "CENTER",
-                    "textFormat": {
-                        "fontSize": 14,
-                        "bold": True
-                    },
-                    "borders": solidBorders
-                }
-            },
-            "fields": "userEnteredFormat"
-        }
-    }
-    activityFormatReq = {
-        "repeatCell": {
-            "range": {
-                "sheetId": participantSheet_id,
-                "startRowIndex": emptyRow,
-                "endRowIndex": emptyRow + 1,
-                "startColumnIndex": 3,  # D column
-                "endColumnIndex": 8    # I column
-            },
-            "cell": {
-                "userEnteredFormat": {
-                    "horizontalAlignment": "CENTER",
-                    "textFormat": {
-                        "fontSize": 12,
-                        "bold": True
-                    },
-                    "borders": solidBorders
-                }
-            },
-            "fields": "userEnteredFormat"
-        }
-    }
-    worksheet.spreadsheet.batch_update({"requests": [updateValuesReq, nameFormatReq, activityFormatReq]})
 
 def tableGeneration(date: datetime.datetime, userID: int, user: dict):
     registrationRequest = [] # A list to place all the request later on    
@@ -152,116 +73,71 @@ def tableGeneration(date: datetime.datetime, userID: int, user: dict):
                 }
             },
         },
-        {
-            "copyPaste": { # Copas label table from template
-                "source": {
-                    "sheetId": templateSheetID, 
-                    "startRowIndex": 0,
-                    "endRowIndex": 11, 
-                    "startColumnIndex": 0, 
-                    "endColumnIndex": 2,
-                },
-                "destination": {
-                    "sheetId": newSheetID,  
-                    "startRowIndex": 0,
-                    "endRowIndex": 11, 
-                    "startColumnIndex": 0, 
-                    "endColumnIndex": 2,
-                },
-                "pasteType": "PASTE_NORMAL",
-                "pasteOrientation": "NORMAL"
-            }
-        },
-        {
-            "copyPaste": { # Copas table from template
-                "source": {
-                    "sheetId": templateSheetID,
-                    "startRowIndex": templateUserLayout[username]["startRowIndex"],
-                    "endRowIndex": templateUserLayout[username]["endRowIndex"], 
-                    "startColumnIndex": templateUserLayout[username]["startColumnIndex"], 
-                    "endColumnIndex": templateUserLayout[username]["endColumnIndex"],
-                },
-                "destination": {
-                    "sheetId": newSheetID,
-                    "startRowIndex": 0,
-                    "endRowIndex": 35, 
-                    "startColumnIndex": 3, # D column
-                    "endColumnIndex": 23, # W column (it's actually X column but it's excluded so it's W column)
-                },
-                "pasteType": "PASTE_NORMAL",
-                "pasteOrientation": "NORMAL"
-            }
-        }
+        utls.make_copy_paste_req( # Copas label table from template
+            source_sheet_id=templateSheetID,
+            origin_start_row=0,
+            origin_end_row=11,
+            origin_start_col=0,
+            origin_end_col=2,
+            dest_sheet_id=newSheetID,
+            dest_start_row=0,
+            dest_end_row=11,
+            dest_start_col=0,
+            dest_end_col=2),
+
+        utls.make_copy_paste_req( # Copas table from template
+            source_sheet_id=templateSheetID,
+            origin_start_row=templateUserLayout[username]["startRowIndex"],
+            origin_end_row=templateUserLayout[username]["endRowIndex"],
+            origin_start_col=templateUserLayout[username]["startColumnIndex"],
+            origin_end_col=templateUserLayout[username]["endColumnIndex"],
+            dest_sheet_id=newSheetID,
+            dest_start_row=0,
+            dest_end_row=35,
+            dest_start_col=3, # D column
+            dest_end_col=23 # W column (it's actually X column but it's excluded so it's W column)
+            ),        
     ]
 
     common_replacements = [] # A list to rewrite common placeholders    
     if userFormat == "Yearly":
         common_replacements.extend([
-            {
-                "updateCells": { #Rewrite the username placeholder to the user's username (D1)
-                    "rows": [ 
-                        {"values": [{"userEnteredValue": {"stringValue": f"{username} - {userActivities[0]}"}}]}  
-                    ],
-                    "fields": "userEnteredValue",
-                    "range": {
-                        "sheetId": newSheetID,
-                        "startRowIndex": 0, # First row
-                        "endRowIndex": 1,
-                        "startColumnIndex": 3, # Column D
-                        "endColumnIndex": 4,
-                    }
-                }
-            },
-            {
-                "updateCells": { #Rewrite the year placeholder as today's year (D3)
-                    "rows": [
-                        {"values": [{"userEnteredValue": {"numberValue": date.year}}]} 
-                    ],
-                    "fields": "userEnteredValue",
-                    "range": {
-                        "sheetId": newSheetID,
-                        "startRowIndex": 2, # Third row
-                        "endRowIndex": 3,
-                        "startColumnIndex": 3, # Column D
-                        "endColumnIndex": 4,
-                    }
-                },
-            }
-            
+            utls.make_update_cells__str_req( # Rewrite the username placeholder to the user's username (D1)
+                source_sheet_id=newSheetID,
+                start_row= 0,
+                end_row= 1,
+                start_col= 3,
+                end_col= 4,
+                value= f"{username} - {userActivities[0]}"
+            ),
+            utls.make_update_cells__str_req( # Rewrite the year placeholder as today's year (D3)
+                source_sheet_id=newSheetID,
+                start_row= 2,
+                end_row= 3,
+                start_col= 3,
+                end_col= 4,
+                value= f"{date.year}"
+            )                        
         ])
     else:
         # Rewrite the common placeholders
         common_replacements.extend([
-            {
-                "updateCells": { # Rewrite the year placeholder as today's year (D3)
-                    "rows": [
-                        {"values": [{"userEnteredValue": {"numberValue": date.year}}]}
-                    ],
-                    "fields": "userEnteredValue",
-                    "range": {
-                        "sheetId": newSheetID,
-                        "startRowIndex": 0, # First row
-                        "endRowIndex": 1,
-                        "startColumnIndex": 3, # Column D
-                        "endColumnIndex": 4,
-                    }
-                },
-            },
-            {
-                "updateCells": { # Rewrite the username placeholder as user's username (E1)
-                    "rows": [
-                        {"values": [{"userEnteredValue": {"stringValue": f"{username}"}}]} 
-                    ],
-                    "fields": "userEnteredValue",
-                    "range": {
-                        "sheetId": newSheetID,
-                        "startRowIndex": 0, # First row
-                        "endRowIndex": 1,
-                        "startColumnIndex": 4, # Column E
-                        "endColumnIndex": 5,
-                    }
-                },
-            }
+            utls.make_update_cells__str_req( # Rewrite the year placeholder as today's year (D3)
+                source_sheet_id=newSheetID,
+                start_row= 0,
+                end_row= 1,
+                start_col= 3,
+                end_col= 4,
+                value= f"{date.year}"
+            ),
+            utls.make_update_cells__str_req( # Rewrite the username placeholder as user's username (E1)
+                source_sheet_id=newSheetID,
+                start_row= 0,
+                end_row= 1,
+                start_col= 4,
+                end_col= 5,
+                value= f"{username}"
+            )           
         ])
         
         # Rewrite the activity placeholders
@@ -285,69 +161,55 @@ def tableGeneration(date: datetime.datetime, userID: int, user: dict):
             "Q1", "Q2", "Q3", "Q4"
         )
 
-        startMonth = 0 # Default value. If this stays 0, the loop for rewriting month won't execute
+        start_month = 0 # Default value. If this stays 0, the loop for rewriting month won't execute
         if "Semesterly" in userFormat:            
             if date.month < 6:
-                yearDivSelector = 0
+                year_div_selector = 0
             else :
-                yearDivSelector = 1
-                startMonth = countEnder = 6                
+                year_div_selector = 1
+                start_month = count_ender = 6                
         elif "Quarterly" in userFormat:
-            countEnder = 3
+            count_ender = 3
 
             if date.month <= 3:
-                startMonth = 0
-                yearDivSelector = 2
+                start_month = 0
+                year_div_selector = 2
             elif date.month <= 6:
-                startMonth = 3
-                yearDivSelector = 3
+                start_month = 3
+                year_div_selector = 3
             elif date.month <= 9:         
-                startMonth = 6
-                yearDivSelector = 4
+                start_month = 6
+                year_div_selector = 4
             else :
-                yearDivSelector = 5
+                year_div_selector = 5
 
         # Rewrite month
-        if startMonth != 0:
-            for month in range(startMonth, startMonth + countEnder):
+        if start_month != 0:
+            for month in range(start_month, start_month + count_ender):
                 if "Semesterly" in userFormat:
-                    monthIndex = 6 + (len(userActivities) * (month % 6)) - 1
+                    month_index = 6 + (len(userActivities) * (month % 6)) - 1
                 else: 
-                    monthIndex = 6 + (len(userActivities) * (month % 3)) - 1
+                    month_index = 6 + (len(userActivities) * (month % 3)) - 1
                 time_related_rewrites.extend([
-                    {
-                        "updateCells": {
-                            "rows": [
-                                {"values": [{"userEnteredValue": {"stringValue": f"{fullYear[month]}"}}]} 
-                            ],
-                            "fields": "userEnteredValue",
-                            "range": {
-                                "sheetId": newSheetID,
-                                "startRowIndex": 2, # Third row
-                                "endRowIndex": 3,
-                                "startColumnIndex": monthIndex, # Column D
-                                "endColumnIndex": monthIndex + 1,
-                            }
-                        }                    
-                    }
+                    utls.make_update_cells__str_req(
+                        source_sheet_id=newSheetID,
+                        start_row= 2,
+                        end_row= 3,
+                        start_col= month_index,
+                        end_col= month_index + 1,
+                        value= f"{fullYear[month]}"
+                    )                   
                 ])
         # Rewrite year division (semester/quarter)
-        time_related_rewrites.extend([            
-            {
-                "updateCells": {
-                    "rows": [
-                        {"values": [{"userEnteredValue": {"stringValue": f"{fullYearDivision[yearDivSelector]}"}}]} 
-                    ],
-                    "fields": "userEnteredValue",
-                    "range": {
-                        "sheetId": newSheetID,
-                        "startRowIndex": 2, # Third row
-                        "endRowIndex": 3,
-                        "startColumnIndex": 3, # Column D
-                        "endColumnIndex": 4,
-                    }
-                }
-            }
+        time_related_rewrites.extend([
+            utls.make_update_cells__str_req(
+                source_sheet_id=newSheetID,
+                start_row= 2,
+                end_row= 3,
+                start_col= 3,
+                end_col= 4,
+                value= f"{fullYearDivision[year_div_selector]}"
+            )           
         ])
 
 
@@ -358,6 +220,7 @@ def tableGeneration(date: datetime.datetime, userID: int, user: dict):
 
 
 def copiesNeeded(date: datetime.datetime, userFormat: str) -> int:
+    copiesNeeded = 0
     if "Quarterly" in userFormat:
         if date.month <= 3:
             copiesNeeded = 3
@@ -401,118 +264,93 @@ def tableDuplication(date: datetime.datetime, userID: int, user: dict):
     )  
 
     if "Semesterly" in userFormat:
-        startMonth = countEnder = 6 # Duplication continues after the 1st semester.        
-        yearDivSelector = 1 # Semester 1 is not needed
+        start_month = count_ender = 6 # Duplication continues after the 1st semester.        
+        year_div_selector = 1 # Semester 1 is not needed
 
         if userFormat == "Semesterly_Standard":
-            endCol = 17
+            end_col = 17
         elif userFormat == "Semesterly_Extended":
-            endCol = 23
+            end_col = 23
 
     elif "Quarterly" in userFormat:
-        starDestRow = 36
-        endDestRow = 71
-        countEnder = 3
+        start_dest_row = 36
+        end_dest_row = 71
+        count_ender = 3
 
         if userFormat == "Quarterly_Standard":
-            endCol = 17
+            end_col = 17
         elif userFormat == "Quarterly_Extended":
-            endCol = 20
+            end_col = 20
                 
         # Determine the month name rewrites
         if date.month <= 3: # 3 copies
-            yearDivSelector = 3
-            startMonth = 3 # April
+            year_div_selector = 3
+            start_month = 3 # April
         elif date.month <= 6: # 2 copies
-            yearDivSelector = 4 
-            startMonth = 6 # July
+            year_div_selector = 4 
+            start_month = 6 # July
         elif date.month <= 9: # 1 copy
-            yearDivSelector = 5
-            startMonth = 9 # October        
+            year_div_selector = 5
+            start_month = 9 # October        
                 
                 
-    duplicationReq: list = []
+    duplication_req: list = []
     while(totalCopies >= 1):
-        duplicationReq.extend([
-            {
-                "copyPaste": { # Copas table from current sheet
-                    "source": {
-                        "sheetId": sheetID,
-                        "startRowIndex": 0,
-                        "endRowIndex": 35,
-                        "startColumnIndex": 3,
-                        "endColumnIndex": endCol # Dynamic column, (it really doesn't matter but prevents a bad copy)
-                    },
-                    "destination": {
-                        "sheetId": sheetID,
-                        "startRowIndex": starDestRow,
-                        "endRowIndex": endDestRow, 
-                        "startColumnIndex": 3, 
-                        "endColumnIndex": endCol
-                    },
-                    "pasteType": "PASTE_NORMAL",
-                    "pasteOrientation": "NORMAL"
-                }
-            }
-        ])
+        duplication_req.extend([
+            utls.make_copy_paste_req( # Copas table from current sheet
+                source_sheet_id=sheetID,
+                origin_start_row=0,
+                origin_end_row=35,
+                origin_start_col=3,
+                origin_end_col=end_col, # Dynamic column, (it really doesn't matter but prevents a bad copy)
+                dest_sheet_id=sheetID,
+                dest_start_row=start_dest_row,
+                dest_end_row=end_dest_row,
+                dest_start_col=3,
+                dest_end_col=end_col
+            )])
               
-        duplicationReq.extend([
-            {
-                "updateCells": { # Rewrite the month for duplication
-                    "rows": [
-                        {"values": [{"userEnteredValue": {"stringValue": fullYearDivision[yearDivSelector]}}]}
-                    ],
-                    "fields": "userEnteredValue",
-                    "range": {
-                        "sheetId": sheetID,
-                        "startRowIndex": starDestRow + 2, # Third row
-                        "endRowIndex": starDestRow + 3,
-                        "startColumnIndex": 3, # Column D
-                        "endColumnIndex": 4,
-                    }
-                }                    
-            }
-        ])
+        duplication_req.extend([
+            utls.make_update_cells__str_req( # Rewrite the month for duplication
+                source_sheet_id=sheetID,
+                start_row= start_dest_row + 2,
+                end_row= start_dest_row + 3,
+                start_col= 3,
+                end_col= 4,
+                value= fullYearDivision[year_div_selector]
+            )])
                 
-        for month in range(startMonth, startMonth + countEnder):
+        for month in range(start_month, start_month + count_ender):
             if "Semesterly" in userFormat:
-                monthIndex = 6 + (len(userActivities) * (month % 6)) - 1
+                month_index = 6 + (len(userActivities) * (month % 6)) - 1
             else: 
-                monthIndex = 6 + (len(userActivities) * (month % 3)) - 1
-            duplicationReq.extend([
-                {
-                    "updateCells": { # Rewrite the month for duplication
-                        "rows": [
-                            {"values": [{"userEnteredValue": {"stringValue": f"{fullYear[month]}"}}]} 
-                        ],
-                        "fields": "userEnteredValue",
-                        "range": {
-                            "sheetId": sheetID,
-                            "startRowIndex": starDestRow + 2, # Third row
-                            "endRowIndex": starDestRow + 3,
-                            "startColumnIndex": monthIndex, # Column D
-                            "endColumnIndex": monthIndex + 1,
-                        }
-                    }                    
-                }
-            ])
+                month_index = 6 + (len(userActivities) * (month % 3)) - 1
+            duplication_req.extend([
+                utls.make_update_cells__str_req( # Rewrite the month for duplication
+                    source_sheet_id=sheetID,
+                    start_row= start_dest_row + 2,
+                    end_row= start_dest_row + 3,
+                    start_col= month_index,
+                    end_col= month_index + 1,
+                    value= fullYear[month]
+                )])
 
         # Incrementation
         totalCopies -= 1        
         if userFormat == "Yearly":
-            starDestRow += 35 
-            endDestRow += 35
+            start_dest_row += 35 
+            end_dest_row += 35
         else:
-            starDestRow += 36
-            endDestRow += 36
+            start_dest_row += 36
+            end_dest_row += 36
 
-            yearDivSelector += 1
+            year_div_selector += 1
             if "Quarterly" in userFormat:
-                startMonth += 3
+                start_month += 3
         
-    return duplicationReq    
+    return duplication_req    
 
-class Registration (commands.Cog):
+class Registration(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -585,10 +423,11 @@ class Registration (commands.Cog):
             # Write the data to local file
             processStartTime = time.perf_counter()
             usersData[userID] = {} # Make a new dict for the user
-            usersData[userID]['username'] = name 
-            usersData[userID]['activities'] = activityList 
-            usersData[userID]['format'] = activityFormat(activityList)
+            usersData[userID]['username'] = name
+            usersData[userID]['activities'] = activityList
+            usersData[userID]['format'] = determine_activity_format(activityList)
             usersData[userID]['remind_at'] = remind_time
+            # usersData[userID]['registered_at'] = datetime.date.today()
             usersData[userID]['utc_offset'] = user_utc_offset
             utls.saveJSON(usersData, CFG.USERS_FILE)
             processEndTime = time.perf_counter()
@@ -601,7 +440,7 @@ class Registration (commands.Cog):
         try:
             # Write the user onto the Participants worksheet
             processStartTime = time.perf_counter()
-            logToParticipants(datetime.datetime.now(), name, activityList)
+            sheetManager.log_participants(datetime.datetime.now(), usersData[userID])
             processEndTime = time.perf_counter()
             print(f"Succesfully logged {name} to participants sheet in {processEndTime - processStartTime:.4f} seconds")
 
@@ -615,6 +454,10 @@ class Registration (commands.Cog):
             processEndTime = time.perf_counter()
             print(f"Added {name}'s sheet in {processEndTime - processStartTime:.4f} seconds")
 
+            # Update the bot worksheet cache
+            sheetManager.update_worksheets_cache(usersData[userID]['username'])
+
+
         except Exception as error:
             print(f"An error has occured, {error}")
             await interaction.followup.send(f"An error has occurred, {error}", ephemeral=True)
@@ -627,11 +470,13 @@ class Registration (commands.Cog):
             await interaction.user.add_roles(time_role)
             print(f"Successfully assigned {role_name} role to {interaction.user.name}")
         except Exception as error:
-            print(f"Idk | {error}")
+            print(f"An error occured when assigning roles | {error}")
+            await interaction.followup.send(f"An error occured when assigning roles, {error}", ephemeral=True)
+            return
                     
         
         # Print success logs
-        print(f"{interaction.user.name} successfully registered as {name} with activities: {', '.join(activityList)} with a reminder at {remind_time}:00 UTC {'+' if utc_hours >= 0 else ''}{utc_hours}:{utc_minutes}")
+        print(f"{interaction.user.name} successfully registered as {name} with activities: {', '.join(activityList)} with a reminder at {remind_time}:00 UTC {'+' if utc_hours >= 0 else ''}{str(utc_hours).zfill(3 if utc_hours < 0 else 2)}:{utc_minutes:02d}")
         await interaction.followup.send(f"{interaction.user.mention} successfully registered as {name} with activities: {", ".join(activityList)} with a reminder at {remind_time}:00 UTC {'+' if utc_hours >= 0 else ''}{utc_hours}:{utc_minutes}")
         commandEndTime = time.perf_counter()
         print(f"Registration executed in {commandEndTime - commandStartTime:.4f} seconds\n")
@@ -650,28 +495,53 @@ class Registration (commands.Cog):
             return
         
         await interaction.response.defer()
-        try:            
-            local_deletion_start = time.perf_counter()
+        try:
+            # Erase user from participant sheet
             registered_name: str = usersData[userID]["username"]
+            participant_sheet = sheetManager.get_worksheet("Participants")
+            user_cell = participant_sheet.find(registered_name) # The row and column of this cell is 1-indexed
+            remove_user_req = [
+                utls.make_update_cells__str_req( # Delete the user's row 
+                    source_sheet_id=participant_sheet.id,
+                    start_row= user_cell.row - 1,
+                    end_row= user_cell.row,
+                    start_col= user_cell.col - 1,
+                    end_col= user_cell.col + 7,
+                    value=""
+                ),
+                {
+                    "deleteSheet": {
+                        "sheetId": sheetManager.get_worksheet(registered_name).id
+                    }
+                }
+            ]
+            
+            sheet_deletion_start = time.perf_counter()  
+            SHEET.batch_update({"requests": remove_user_req})
+            sheet_deletion_end = time.perf_counter()
+            print(f"Sheet deletion finished in {sheet_deletion_end - sheet_deletion_start:.8f} seconds")
+
+            # Role deletion
+            role_start = time.perf_counter()
+            role_name = convert_time_to_rolename(usersData[userID]['remind_at'], utc_hours= usersData[userID]["utc_offset"][0], utc_minutes=usersData[userID]["utc_offset"][1])
+            time_role = discord.utils.get(interaction.guild.roles, name=role_name)            
+            await interaction.user.remove_roles(time_role)
+            print(f"Succesfully removed {interaction.user.name}'s time role in {time.perf_counter() - role_start:.8f} seconds!")
+
+            # Local deletion
+            local_deletion_start = time.perf_counter()            
             del usersData[userID]
             utls.saveJSON(usersData, CFG.USERS_FILE)
             local_deletion_end = time.perf_counter()
-            print(f"Local deletion finished in {local_deletion_end - local_deletion_start:.8f} seconds")
-
-            sheet_deletion_start = time.perf_counter()
-            SHEET.del_worksheet(sheetManager.get_worksheet(registered_name))
-            sheet_deletion_end = time.perf_counter()
-            print(f"Sheet deletion finished in {sheet_deletion_end - sheet_deletion_start:.4f} seconds")
-            
-
-        except Exception as error:
-            print(f"{interaction.user.name}'s ID was not found: {error}")            
-            await interaction.followup.send(f"Your data lookup went wrong {error}\n", ephemeral=True)
+            print(f"Local deletion finished in {local_deletion_end - local_deletion_start:.8f} seconds")        
+        except Exception as e:
+            print(f"Error: {e}")
+            await interaction.followup.send(f"Something went wrong! {e}\n", ephemeral=True)
             return
         command_end_time = time.perf_counter()
         print(f"Signing out {registered_name} took {command_end_time - command_start_time:4f} seconds\n")
         await interaction.followup.send(f"You've been signed out!")
 
 async def setup(bot: commands.Bot):    
-    _GUILD_ID = discord.Object(id = CFG.GUILD_ID)
+    _GUILD_ID = discord.Object(id = CFG.GUILD_ID)    
     await bot.add_cog(Registration(bot), guild = _GUILD_ID)
