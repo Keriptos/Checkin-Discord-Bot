@@ -427,7 +427,7 @@ class Registration(commands.Cog):
             usersData[userID]['activities'] = activityList
             usersData[userID]['format'] = determine_activity_format(activityList)
             usersData[userID]['remind_at'] = remind_time
-            # usersData[userID]['registered_at'] = datetime.date.today()
+            usersData[userID]['registered_at'] = datetime.date.isoformat(datetime.datetime.now())
             usersData[userID]['utc_offset'] = user_utc_offset
             utls.saveJSON(usersData, CFG.USERS_FILE)
             processEndTime = time.perf_counter()

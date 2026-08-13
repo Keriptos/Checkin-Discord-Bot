@@ -71,19 +71,24 @@ class SheetService:
             raise gspread.WorksheetNotFound(f"{worksheet_name}'s worksheet not found. User should register first!")
 
 
-    def log_participants(self, date: datetime.datetime, user: dict) -> None:
+    def log_participants(self, user: dict) -> None:
         """Logs the user onto the Participants sheet"""
         worksheet = self.get_worksheet("Participants")
 
         start = time.perf_counter()
-        username = user['username']
-        activities: list = user['activities']
+        try:
+            username = user['username']
+            activities: list = user['activities']
+            date: str = user['registered_at']
+        except KeyError as e:
+            logger.exception(f"Missing key in user dictionary: {e}")
+            return
+        
         participant_sheet_id = worksheet.id
-
         name_col = worksheet.col_values(1) # 1-indexed argument
         empty_row = len(name_col) # 0-indexed. A cell after the last name cell will always be empty
-        
-        formatted_date: str = date.strftime("%d %B %Y")
+
+        formatted_date: str = datetime.date.fromisoformat(date).strftime("%d %B %Y")
         row_update: list = [username, formatted_date] + activities # !! REMEMBER TO ADJUST THE SHEET LATER. SIGNOUT IS NO LONGER SHOWN ON SHEET. BUT WILL BE SAVED IN DATABASE
 
         compiledReq: list = []
