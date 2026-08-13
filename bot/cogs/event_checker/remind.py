@@ -43,7 +43,7 @@ class DailyRemind(commands.Cog):
             "You know you need to get a JOB later right❓",
             "LOCK IN TWINNN ❗❗❗",
             "Remember what you signed up for ❗",
-            "Is it worth skipping today's work and double it to tomorrow ❓"
+            "Is it worth skipping today's work and double it to tomorrow ❓",
             "Your future self will thank you",
             "Let this be the push you need"
         ]
