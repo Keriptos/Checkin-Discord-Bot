@@ -440,7 +440,7 @@ class Registration(commands.Cog):
         try:
             # Write the user onto the Participants worksheet
             processStartTime = time.perf_counter()
-            sheetManager.log_participants(datetime.datetime.now(), usersData[userID])
+            sheetManager.log_participants(usersData[userID])
             processEndTime = time.perf_counter()
             print(f"Succesfully logged {name} to participants sheet in {processEndTime - processStartTime:.4f} seconds")
 
