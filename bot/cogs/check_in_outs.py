@@ -6,14 +6,20 @@ from discord.ext import commands
 # Google Sheets Related Imports
 from bot.services.sheet_service import sheetManager
 
+# Supabase Related Imports
+from bot.services.supabase_service import get_supabase_user_id, get_activity_id, make_checkin_record, check_out
+
 # Other Imports
 import bot.helpers.utils as utls
 from bot.config_builder import ConfigDTO
 import datetime; from datetime import timedelta
-import time 
+import logging
+import time
 
 # Globals
 CFG = ConfigDTO()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5 at once
     def __init__(self, userID: str):
@@ -105,12 +111,27 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
         print(f"Succesfully saved timestamp locally in {end - start:.8f} seconds")        
         await interaction.followup.send(f"Syncing for {chosen}...", ephemeral= True)
 
+        # Sync to Supabase
+        logger.info("Syncing to Supabase")
+        supa_start = time.perf_counter()
+        supa_user_id: str = get_supabase_user_id(self.userID)
+
+        if not supa_user_id:
+            logger.info(f"{interaction.user.name} hasn't signed into Supabase! Skipping sync...")
+        else:
+            for activity in chosen:
+                try: 
+                    activity_id = get_activity_id(activity)
+                    make_checkin_record(supa_user_id, activity_id)
+                except Exception as e:
+                    logger.warning(f"Something went wrong, {e}", exc_info=True)
+            logger.info(f"Succesfully synced to Supabase in {time.perf_counter() - supa_start:.8f} seconds")
 
         # Sync to sheets process (Check-in)
-        print("Checking in to sheets")  
+        logger.info("Checking in to sheets")  
         worksheet = sheetManager.get_worksheet(self.username)
-        worksheetID = worksheet.id        
-        print(f"Got {interaction.user.name}'s worksheet")
+        worksheetID = worksheet.id
+        logger.info(f"Got {interaction.user.name}'s worksheet")
 
          
         date = datetime.datetime.now()
@@ -251,6 +272,16 @@ class CheckoutMenu(discord.ui.Select):
     
     
         await interaction.response.defer()
+        # Sync to Supabase
+        supa_start = time.perf_counter()
+        supa_user_id = get_supabase_user_id(self.userID)
+        if not supa_user_id:
+            logger.warning(f" {interaction.user.name} hasn't signed into Supabase. Skipping sync...")
+        else:
+            for activity in chosen:
+                activity_id = get_activity_id(activity)
+                check_out(supa_user_id, activity_id)
+            logger.info(f"Succesfully synced to Supabase in {time.perf_counter() - supa_start:.8f} seconds")
 
         # Syncing to Sheets (Check-out)
         print("Checking out from sheets")
@@ -277,7 +308,7 @@ class CheckoutMenu(discord.ui.Select):
             date = datetime.datetime.now()                
             row_to_find, col_to_find = sheetManager.get_current_date_cell(date, self.user, chosen)
             
-            # Request section        
+            # Request section
             compiledRequests = []
             for col in col_to_find:
                 compiledRequests.extend([ # Write DONE to update cell (we used conditional formatting when making the table)
