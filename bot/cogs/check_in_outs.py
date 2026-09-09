@@ -7,7 +7,7 @@ from discord.ext import commands
 from bot.services.sheet_service import sheetManager
 
 # Supabase Related Imports
-from bot.services.supabase_service import get_supabase_user_id, get_activity_id, make_checkin_record, check_out
+from bot.services.supabase_service import *
 
 # Other Imports
 import bot.helpers.utils as utls
@@ -109,26 +109,28 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
 
         end = time.perf_counter()
         print(f"Succesfully saved timestamp locally in {end - start:.8f} seconds")        
-        await interaction.followup.send(f"Syncing for {chosen}...", ephemeral= True)
+        await interaction.followup.send(f"Syncing for {', '.join(chosen)}...", ephemeral= True)
 
         # Sync to Supabase
         logger.info("Syncing to Supabase")
+        supa_checked_in = False
         supa_start = time.perf_counter()
-        supa_user_id: str = get_supabase_user_id(self.userID)
+        supa_user: str = get_supabase_user(self.userID)
 
-        if not supa_user_id:
+        if not supa_user:
             logger.info(f"{interaction.user.name} hasn't signed into Supabase! Skipping sync...")
         else:
             for activity in chosen:
                 try: 
                     activity_id = get_activity_id(activity)
-                    make_checkin_record(supa_user_id, activity_id)
+                    make_checkin_record(supa_user, activity_id)
                 except Exception as e:
                     logger.warning(f"Something went wrong, {e}", exc_info=True)
+            supa_checked_in = True
             logger.info(f"Succesfully synced to Supabase in {time.perf_counter() - supa_start:.8f} seconds")
 
         # Sync to sheets process (Check-in)
-        logger.info("Checking in to sheets")  
+        logger.info("Checking in to sheets")        
         worksheet = sheetManager.get_worksheet(self.username)
         worksheetID = worksheet.id
         logger.info(f"Got {interaction.user.name}'s worksheet")
@@ -179,10 +181,11 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
             if compiledRequests:
                 processStartTime = time.perf_counter()                             
                 worksheet.spreadsheet.batch_update({"requests": compiledRequests}) 
-                processEndTime = time.perf_counter()
-                print(f"Sucessfully checked in user in {processEndTime - processStartTime:.4f} seconds")            
+                processEndTime = time.perf_counter()                
+                print(f"Sucessfully checked in user in {processEndTime - processStartTime:.4f} seconds")                
+                await interaction.followup.send(f"{interaction.user.mention} has checked in to {'Supabase and 'if supa_checked_in else ''}Sheets for {', '.join(chosen)}")
         except Exception as error:
-            print(f"An error has occured when batch-updatin, {error}\n") 
+            print(f"An error has occured when batch-updatin, {error}\n")
 
             # Debug
             print(f"User who failed to check-out: {interaction.user.name}, registered as {self.username} with ID: {self.userID}")            
@@ -192,7 +195,6 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
             await interaction.followup.send(f"Error: {error}", ephemeral=True)
                         
 
-        await interaction.followup.send(f"{interaction.user.mention} has checked in to the sheets for {', '.join(chosen)}")
         commandEndTime = time.perf_counter()
         print(f"Checkin executed in {commandEndTime - commandStartTime:.4f} seconds\n")
         
@@ -274,13 +276,15 @@ class CheckoutMenu(discord.ui.Select):
         await interaction.response.defer()
         # Sync to Supabase
         supa_start = time.perf_counter()
-        supa_user_id = get_supabase_user_id(self.userID)
-        if not supa_user_id:
+        supa_checked_out = False
+        supa_user = get_supabase_user(self.userID)
+        if not supa_user:
             logger.warning(f" {interaction.user.name} hasn't signed into Supabase. Skipping sync...")
         else:
             for activity in chosen:
                 activity_id = get_activity_id(activity)
-                check_out(supa_user_id, activity_id)
+                check_out(supa_user, activity_id)
+            supa_checked_out = True
             logger.info(f"Succesfully synced to Supabase in {time.perf_counter() - supa_start:.8f} seconds")
 
         # Syncing to Sheets (Check-out)
@@ -364,9 +368,9 @@ class CheckoutMenu(discord.ui.Select):
             elapsedTime: timedelta = timeCheckedOut - userTimeCheckedIn
             print(f"{interaction.user.name}'s {activity} elapsed time: {utls.lockedInTime(elapsedTime)}")
             if len(chosen) == 1:
-                await interaction.followup.send(f"{interaction.user.mention} has checked out from the sheet for {activity} activity! Locked in for {utls.lockedInTime(elapsedTime)}")
+                await interaction.followup.send(f"{interaction.user.mention} has checked out from {'Supabase and ' if supa_checked_out else ''}Sheets for {activity} activity! Locked in for {utls.lockedInTime(elapsedTime)}")
             else:
-                await interaction.followup.send(f"{interaction.user.mention} has checked out from the sheet for {activity} activities! Locked in for {utls.lockedInTime(elapsedTime)}")
+                await interaction.followup.send(f"{interaction.user.mention} has checked out from {'Supabase and ' if supa_checked_out else ''}Sheets for {activity} activities! Locked in for {utls.lockedInTime(elapsedTime)}")
         
         # If user chooses to check out from all activities, remove the entire username dict from the checkin file
         if len(chosen) == len(self.checkedInActivities): 

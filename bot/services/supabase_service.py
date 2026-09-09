@@ -1,11 +1,13 @@
 from postgrest import APIResponse, APIError
+from postgrest.types import JSON
 from discord import Member as DiscordMember
 from dotenv import load_dotenv
 import supabase
 import uuid
 import os
 import logging
-import datetime
+from datetime import timezone, timedelta, datetime
+
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -63,10 +65,10 @@ class SupaUserData:
 #     }).execute()
     
 
-def get_supabase_user_id(discord_id: str) -> str | None:
-    result = db.table('users').select('id').eq('discord_id', discord_id).execute()
+def get_supabase_user(discord_id: str) -> JSON | None:
+    result = db.table('users').select('*').eq('discord_id', discord_id).execute()
     if result.data:
-        return result.data[0]['id']
+        return result.data[0]
     return None
 
 def generate_activity(activity_name: str) -> APIResponse:
@@ -85,41 +87,21 @@ def get_activity_id(activity_name: str) -> str:
     except APIError as e:
         logger.error(f"Something went wrong, {e}", exc_info=True)
 
-def make_checkin_record(supa_user_id: str, activity_id: str) -> None:
+
+def make_checkin_record(supa_user: JSON, activity_id: str) -> None:
     try: 
         db.table('checkins').insert({            
-            "user_id": supa_user_id,
+            "user_id": supa_user['id'],
             "activity_id": activity_id,
-            "start_time": datetime.datetime.now().isoformat(),            
+            "start_time": datetime.now(timezone(timedelta(hours=supa_user['utc_hour'], minutes=supa_user['utc_min']))).isoformat(),
         }).execute()
     except APIError as e:
         logger.error(f"Something went wrong: {e}", exc_info=True)
 
-def check_out(supa_user_id: str, activity_id: str): # Updates the checkin record
+def check_out(supa_user: JSON, activity_id: str): # Updates the checkin record
     try:
         db.table('checkins').update({
-            "end_time": datetime.datetime.now().isoformat(),
-        }).eq('user_id', supa_user_id).eq('activity_id', activity_id).is_('end_time', "null").execute()
+            "end_time": datetime.now(timezone(timedelta(hours=supa_user['utc_hour'], minutes=supa_user['utc_min']))).isoformat(),
+        }).eq('user_id', supa_user['id']).eq('activity_id', activity_id).is_('end_time', "null").execute()
     except APIError as e:
         logger.error(f"Something went wrong: {e}", exc_info=True)
-
-
-def main():
-    user_id = get_supabase_user_id(591939252061732900)
-    activity_id = get_activity_id("Coding")
-    check_out(user_id, activity_id)
-    # print(user_id)
-    # check_out(user_id)
-    # get_activity_id("Studying")
-    # result = (
-    #     db.table('checkins')
-    #     .select('*')
-    #     .eq('user_id', user_id)
-    #     .is_('end_time', "null")
-    #     .execute())
-    # print(result)
-
-    
-
-if __name__ == "__main__":
-    main()
