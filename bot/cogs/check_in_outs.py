@@ -7,7 +7,7 @@ from discord.ext import commands
 from bot.services.sheet_service import sheetManager
 
 # Supabase Related Imports
-from bot.services.supabase_service import *
+from bot.services.supabase_service import SupaService
 
 # Other Imports
 import bot.helpers.utils as utls
@@ -115,15 +115,15 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
         logger.info("Syncing to Supabase")
         supa_checked_in = False
         supa_start = time.perf_counter()
-        supa_user: str = get_supabase_user(self.userID)
+        supa_user: str = await SupaService.get_supabase_user(self.userID)
 
         if not supa_user:
             logger.info(f"{interaction.user.name} hasn't signed into Supabase! Skipping sync...")
         else:
             for activity in chosen:
                 try: 
-                    activity_id = get_activity_id(activity)
-                    make_checkin_record(supa_user, activity_id)
+                    activity_id = await SupaService.get_activity_id(activity)
+                    await SupaService.make_checkin_record(supa_user, activity_id)
                 except Exception as e:
                     logger.warning(f"Something went wrong, {e}", exc_info=True)
             supa_checked_in = True
@@ -277,13 +277,13 @@ class CheckoutMenu(discord.ui.Select):
         # Sync to Supabase
         supa_start = time.perf_counter()
         supa_checked_out = False
-        supa_user = get_supabase_user(self.userID)
+        supa_user = await SupaService.get_supabase_user(self.userID)
         if not supa_user:
             logger.warning(f" {interaction.user.name} hasn't signed into Supabase. Skipping sync...")
         else:
             for activity in chosen:
-                activity_id = get_activity_id(activity)
-                check_out(supa_user, activity_id)
+                activity_id = await SupaService.get_activity_id(activity)
+                await SupaService.check_out(supa_user, activity_id)
             supa_checked_out = True
             logger.info(f"Succesfully synced to Supabase in {time.perf_counter() - supa_start:.8f} seconds")
 
