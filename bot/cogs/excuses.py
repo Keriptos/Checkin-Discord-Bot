@@ -4,7 +4,7 @@ from discord import app_commands
 from discord.ext import commands
 
 # Google Sheets Related Imports
-from bot.services.sheet_service import sheetManager
+from bot.services.sheet_service import SheetService
 
 # Other Imports
 import bot.helpers.utils as utls
@@ -86,13 +86,13 @@ class LabelsMenu(discord.ui.Select):
         
         await interaction.response.defer()
         print("Going to Sheets")
-        worksheet = sheetManager.get_worksheet(self.username)
+        worksheet = await (await SheetService.get_spreadsheet_client()).worksheet(self.username)
         worksheetID = worksheet.id
         print(f"Got {self.username}'s worksheet")
 
 
         date = datetime.datetime.now()
-        rowToFind, columnToFind = sheetManager.get_current_date_cell(date, self.user, self.chosenActivities)   
+        rowToFind, columnToFind = await SheetService.get_current_date_cell(date, self.user, self.chosenActivities)
         # Request section
         compiledRequests = []
         for col in columnToFind:
@@ -121,7 +121,7 @@ class LabelsMenu(discord.ui.Select):
         try:
             if compiledRequests:
                 processStartTime = time.perf_counter()                             
-                worksheet.spreadsheet.batch_update({"requests": compiledRequests}) 
+                await (await SheetService.get_spreadsheet_client()).batch_update({"requests": compiledRequests})
                 processEndTime = time.perf_counter()
                 print(f"Sucessfully filled user's excuse in {processEndTime - processStartTime:.4f} seconds")            
         except Exception as error:
