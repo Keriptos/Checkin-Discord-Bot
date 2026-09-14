@@ -5,18 +5,17 @@ from discord.ext import tasks, commands
 # Other Imports
 import bot.helpers.utils as utls
 from bot.config_builder import ConfigDTO
-from bot.services.sheet_service import sheetManager
+from bot.services.sheet_service import SheetService
 import datetime
 import time
 
 # Globals
 CFG = ConfigDTO()
-SHEET = sheetManager.get_sheet_client()
 """
     This file will generate a new table when the current date is Dec 31
 """
 
-def find_empty_cell_row(date: datetime.datetime, user: dict):
+async def find_empty_cell_row(date: datetime.datetime, user: dict):
     
     username: str = user['username']    
     user_format: str = user['format']
@@ -29,7 +28,7 @@ def find_empty_cell_row(date: datetime.datetime, user: dict):
 
 
     # Using approach 2, search for an empty cell after existing table
-    timeColumn = sheetManager.get_year_column(username)
+    timeColumn = await SheetService._get_year_column(username)
     foundYear = False
     yearRow: int = 0 # 0-indexed. Row index of the first year. (Default value will be used for non-yearly format)
     
@@ -93,7 +92,7 @@ def copiesNeeded(user_format: str) -> int | None:
     return copiesNeeded
 
 
-def tableYearDupeReq(start_cell: int, userID: int, user: dict):    
+async def tableYearDupeReq(start_cell: int, userID: int, user: dict):
     user_format = user['format']
     sheetID = utls.newUserSheetID(userID)
     userActivities = user['activities']
@@ -102,7 +101,7 @@ def tableYearDupeReq(start_cell: int, userID: int, user: dict):
     duplication_req: list = []
     if user_format == "Yearly":
         # Pre-requisites of the cell locations
-        templateSheetID = sheetManager.get_worksheet(worksheet_name="Template").id
+        templateSheetID = (await (await SheetService.get_spreadsheet_client()).worksheet("Template")).id
         start_dest_row = start_cell
         end_dest_row = start_cell + 34
 
@@ -268,7 +267,7 @@ class YearCheck(commands.Cog):
             users = utls.loadJSON(CFG.USERS_FILE)
             for target_user_id in users.keys():
                 start = time.perf_counter()
-                SHEET.batch_update({"requests": tableYearDupeReq(
+                await (await SheetService.get_spreadsheet_client()).batch_update({"requests": tableYearDupeReq(
                     start_cell = find_empty_cell_row(date = datetime.datetime.now(), user= users[target_user_id]),
                     userID = int(target_user_id),
                     user = users[target_user_id]
