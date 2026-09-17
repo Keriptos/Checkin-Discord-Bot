@@ -2,7 +2,7 @@
 import discord 
 from discord import app_commands
 from discord.ext import commands
-from bot.services.sheet_service import sheetManager
+from bot.services.sheet_service import SheetService
 
 # Other Imports
 import bot.helpers.utils as utls
@@ -11,7 +11,6 @@ import time
 import datetime
 
 # Globals
-SHEET = sheetManager.get_sheet_client()
 CFG = ConfigDTO()
 VALID_UTC_OFFSET = {
     (-12,0), (-11,0),(-10,0),(-9,30),(-9,0),(-8,0),(-7,0),(-6,0),(-5,0), # 9 items
@@ -50,9 +49,9 @@ def convert_time_to_rolename(remind_time: int, utc_hours: int, utc_minutes: int)
     return role_name
 
 
-def tableGeneration(date: datetime.datetime, userID: int, user: dict):
+async def tableGeneration(date: datetime.datetime, userID: int, user: dict):
     registrationRequest = [] # A list to place all the request later on    
-    worksheet = sheetManager.get_worksheet("Template")
+    worksheet = await (await SheetService.get_spreadsheet_client()).worksheet("Template")
     templateSheetID = worksheet.id
 
     
@@ -438,16 +437,12 @@ class Registration(commands.Cog):
         
         # Try to write to Google Sheet (Slow Process)
         try:
-            # Write the user onto the Participants worksheet
-            processStartTime = time.perf_counter()
-            sheetManager.log_participants(usersData[userID])
-            processEndTime = time.perf_counter()
-            print(f"Succesfully logged {name} to participants sheet in {processEndTime - processStartTime:.4f} seconds")
-
-
+            # Write the user onto the Participants worksheet            
+            await SheetService.log_participants(datetime.datetime.now(), usersData[userID])
+            
             # Make new sheet and table for the user 
             processStartTime = time.perf_counter()
-            SHEET.batch_update({"requests": tableGeneration(                
+            await (await SheetService.get_spreadsheet_client()).batch_update({"requests": tableGeneration(                
                 date = datetime.datetime.now(),
                 userID = int(userID),
                 user= usersData.get(userID))})
@@ -455,9 +450,7 @@ class Registration(commands.Cog):
             print(f"Added {name}'s sheet in {processEndTime - processStartTime:.4f} seconds")
 
             # Update the bot worksheet cache
-            sheetManager.update_worksheets_cache(usersData[userID]['username'])
-
-
+            await (await SheetService.get_spreadsheet_client()).worksheet(usersData[userID]['username'])
         except Exception as error:
             print(f"An error has occured, {error}")
             await interaction.followup.send(f"An error has occurred, {error}", ephemeral=True)
@@ -498,8 +491,8 @@ class Registration(commands.Cog):
         try:
             # Erase user from participant sheet
             registered_name: str = usersData[userID]["username"]
-            participant_sheet = sheetManager.get_worksheet("Participants")
-            user_cell = participant_sheet.find(registered_name) # The row and column of this cell is 1-indexed
+            participant_sheet = await (await SheetService.get_spreadsheet_client()).worksheet("Participants")
+            user_cell = await participant_sheet.find(registered_name) # The row and column of this cell is 1-indexed
             remove_user_req = [
                 utls.make_update_cells__str_req( # Delete the user's row 
                     source_sheet_id=participant_sheet.id,
@@ -511,13 +504,13 @@ class Registration(commands.Cog):
                 ),
                 {
                     "deleteSheet": {
-                        "sheetId": sheetManager.get_worksheet(registered_name).id
+                        "sheetId": (await (await SheetService.get_spreadsheet_client()).worksheet(registered_name)).id
                     }
                 }
             ]
             
             sheet_deletion_start = time.perf_counter()  
-            SHEET.batch_update({"requests": remove_user_req})
+            await (await SheetService.get_spreadsheet_client()).batch_update({"requests": remove_user_req})
             sheet_deletion_end = time.perf_counter()
             print(f"Sheet deletion finished in {sheet_deletion_end - sheet_deletion_start:.8f} seconds")
 

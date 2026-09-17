@@ -5,8 +5,8 @@ from discord.ext import commands
 # Other Imports
 import os
 import asyncio
-from bot.services.sheet_service import sheetManager
-from bot.services.supabase_service import SupabaseService
+from bot.services.supabase_service import SupaService
+from bot.services.sheet_service import SheetService 
 from bot.config_builder import ConfigDTO
 
 CFG = ConfigDTO()
@@ -24,9 +24,8 @@ async def on_ready():
         print("An error with syncing app commands has occured : ", error)
     
 async def init_services():
-    await SupabaseService.init_supabase()
-    sheetManager.get_sheet_client()
-    sheetManager.force_load_worksheets()
+    await SupaService.init_supabase()
+    await SheetService.get_spreadsheet_client()    
 
 async def load():    
     print("Syncing cogs...")

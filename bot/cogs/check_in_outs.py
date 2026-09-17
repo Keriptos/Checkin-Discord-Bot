@@ -4,7 +4,7 @@ from discord import app_commands
 from discord.ext import commands
 
 # Google Sheets Related Imports
-from bot.services.sheet_service import sheetManager
+from bot.services.sheet_service import SheetService
 
 # Supabase Related Imports
 from bot.services.supabase_service import SupaService
@@ -130,10 +130,10 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
             logger.info(f"Succesfully synced to Supabase in {time.perf_counter() - supa_start:.8f} seconds")
 
         # Sync to sheets process (Check-in)
-        logger.info("Checking in to sheets")        
-        worksheet = sheetManager.get_worksheet(self.username)
-        worksheetID = worksheet.id
-        logger.info(f"Got {interaction.user.name}'s worksheet")
+        print("Checking in to sheets")  
+        worksheet = await (await SheetService.get_spreadsheet_client()).worksheet(self.username)
+        worksheetID = worksheet.id        
+        print(f"Got {interaction.user.name}'s worksheet")
 
          
         date = datetime.datetime.now()
@@ -152,7 +152,7 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
             print(f"An error has occured when setting up {interaction.user.name}'s sheetCache {error}")
         
         # Get row_to_find & col_to_find. Then write it to sheetCache
-        row_to_find, col_to_find = sheetManager.get_current_date_cell(date, self.user, chosen)
+        row_to_find, col_to_find = await SheetService.get_current_date_cell(date, self.user, chosen)
         try:
             
             for idx, activity in enumerate(chosen):
@@ -180,10 +180,9 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
         try:
             if compiledRequests:
                 processStartTime = time.perf_counter()                             
-                worksheet.spreadsheet.batch_update({"requests": compiledRequests}) 
-                processEndTime = time.perf_counter()                
-                print(f"Sucessfully checked in user in {processEndTime - processStartTime:.4f} seconds")                
-                await interaction.followup.send(f"{interaction.user.mention} has checked in to {'Supabase and 'if supa_checked_in else ''}Sheets for {', '.join(chosen)}")
+                await (await SheetService.get_spreadsheet_client()).batch_update({"requests": compiledRequests}) 
+                processEndTime = time.perf_counter()
+                print(f"Sucessfully checked in user in {processEndTime - processStartTime:.4f} seconds")            
         except Exception as error:
             print(f"An error has occured when batch-updatin, {error}\n")
 
@@ -289,7 +288,7 @@ class CheckoutMenu(discord.ui.Select):
 
         # Syncing to Sheets (Check-out)
         print("Checking out from sheets")
-        worksheet = sheetManager.get_worksheet(self.username)
+        worksheet = await (await SheetService.get_spreadsheet_client()).worksheet(self.username)
         worksheetID = worksheet.id
         print(f"Got {interaction.user.name}'s worksheet")
         
@@ -310,7 +309,7 @@ class CheckoutMenu(discord.ui.Select):
             print(f"{self.username}'s sheetCache was empty, fetching row_to_find & colToFind the old way")
 
             date = datetime.datetime.now()                
-            row_to_find, col_to_find = sheetManager.get_current_date_cell(date, self.user, chosen)
+            row_to_find, col_to_find = await SheetService.get_current_date_cell(date, self.user, chosen)
             
             # Request section
             compiledRequests = []
@@ -348,7 +347,7 @@ class CheckoutMenu(discord.ui.Select):
         try:
             if compiledRequests:            
                 processStartTime = time.perf_counter()
-                worksheet.spreadsheet.batch_update({"requests": compiledRequests}) 
+                await (await SheetService.get_spreadsheet_client()).batch_update({"requests": compiledRequests}) 
                 processEndTime = time.perf_counter()
                 print(f"Sucessfully checked out user from sheets in {processEndTime - processStartTime:.4f} seconds")
 
@@ -373,12 +372,12 @@ class CheckoutMenu(discord.ui.Select):
                 await interaction.followup.send(f"{interaction.user.mention} has checked out from {'Supabase and ' if supa_checked_out else ''}Sheets for {activity} activities! Locked in for {utls.lockedInTime(elapsedTime)}")
         
         # If user chooses to check out from all activities, remove the entire username dict from the checkin file
-        if len(chosen) == len(self.checkedInActivities): 
+        if len(chosen) == len(self.checkedInActivities):
             timeCheckedIn.pop(self.userID)
         
         else: # Otherwise, remove the specific activity key from the user's checkin dict
-            for activity in chosen: 
-                timeCheckedIn[self.userID]['activities'].pop(activity)            
+            for activity in chosen:
+                timeCheckedIn[self.userID]['activities'].pop(activity)
         utls.saveJSON(timeCheckedIn, CFG.CHECKIN_FILE) # Save the updated dictionary back to the JSON file
         print(f"{interaction.user.name} checked out locally for {chosen}")
 
