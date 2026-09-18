@@ -1,11 +1,9 @@
 from postgrest import APIResponse, APIError
 from postgrest.types import JSON
-from discord import Member as DiscordMember
 from supabase import AsyncClient, create_async_client
 import asyncio
 from dotenv import load_dotenv
 from datetime import timezone, timedelta, datetime
-import uuid
 import os
 import logging
 
@@ -26,7 +24,8 @@ class SupaService:
                     load_dotenv()
                     SUPA_URL: str = os.environ.get("SUPABASE_URL")
                     SUPA_KEY: str = os.environ.get("SUPABASE_KEY")
-                    cls._db = await create_async_client(SUPA_URL, SUPA_KEY)        
+                    cls._db = await create_async_client(SUPA_URL, SUPA_KEY)
+                    if cls._db: logger.info(f"Supabase client is online!")
 
     # @classmethod
     # async def generate_user(cls, user: DiscordMember, sheet_format: str):
@@ -89,21 +88,21 @@ class SupaService:
         except APIError as e:
             logger.error(f"Something went wrong: {e}", exc_info=True)
 
+    @classmethod
+    async def make_excuse_record(cls, supa_user: JSON, activity_id: str, reason: str):
+        try:
+            await cls._db.table('excuses').insert({
+                'user_id': supa_user['id'],
+                'activity_id': activity_id,
+                'excuse_date': datetime.now(timezone(timedelta(hours=supa_user['utc_hour'], minutes=supa_user['utc_min']))).isoformat(),
+                'reason': reason
+            }).execute()
+        except APIError as e:
+            logger.error(f"Something went wrong: {e}", exc_info=True)
+    
 # VALID_UTC_ = {
 #     (-12,0), (-11,0),(-10,0),(-9,30),(-9,0),(-8,0),(-7,0),(-6,0),(-5,0), # 9 items
 #     (-4,0),(-3,30),(-3,0),(-2,0),(-1,0),(0,0),(1,0),(2,0),(3,0),(3,30), # 10 items
 #     (4,0),(4,30),(5,0),(5,30),(5,45),(6,0),(6,30),(7,0),(8,0),(8,45), # 10 items
 #     (9,0),(9,30),(10,0),(10,30),(11,0),(12,0),(12,45),(13,0),(14,0) # 9 items
 # }
-
-
-async def main():
-    await SupaService.init_supabase()
-    supa_user = await SupaService.get_supabase_user(591939252061732900)
-    activity_id = await SupaService.get_activity_id('Coding')
-    # await SupaService.make_checkin_record(supa_user, activity_id)
-    await SupaService.check_out(supa_user, activity_id)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

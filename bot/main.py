@@ -24,8 +24,9 @@ async def on_ready():
         print("An error with syncing app commands has occured : ", error)
     
 async def init_services():
+    SheetService._init_cm()
+    await SheetService.get_spreadsheet_client()
     await SupaService.init_supabase()
-    await SheetService.get_spreadsheet_client()    
 
 async def load():    
     print("Syncing cogs...")
@@ -48,14 +49,12 @@ async def load():
                 print(f"Failed to load {extensionName}: {error}")
     print("Synced command cogs!")
 
-async def setup_hook():
-    await init_services()
-    await load()
-     
-     
+
 async def main():
-    async with bot:         
-        await bot.start(os.getenv("DISCORD_TOKEN"))    
+    async with bot:
+        await init_services()
+        await load()
+        await bot.start(os.getenv("DISCORD_TOKEN"))
 
     
 if __name__  == "__main__":

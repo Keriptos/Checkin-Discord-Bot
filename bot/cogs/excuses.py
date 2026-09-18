@@ -3,17 +3,21 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-# Google Sheets Related Imports
+# Service Imports
 from bot.services.sheet_service import SheetService
+from bot.services.supabase_service import SupaService
 
 # Other Imports
 import bot.helpers.utils as utls
 from bot.config_builder import ConfigDTO
 import datetime
-import time 
+import time
+import logging
 
 # Globals
 CFG = ConfigDTO()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class LabelsMenu(discord.ui.Select):
     """ A menu to use other labels to fill in the activity days.
@@ -81,14 +85,30 @@ class LabelsMenu(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         commandStartTime = time.perf_counter()
         chosenExcuse: str = self.values[0] # User selected values will always be 1 element, which is a string        
-        print(f"{self.username}'s excuse for {self.chosenActivities}: {chosenExcuse}")
-                 
+        logger.info(f"{self.username}'s excuse for {self.chosenActivities}: {chosenExcuse}")
+
         
         await interaction.response.defer()
-        print("Going to Sheets")
+
+        # Sync to Supabase
+        supa_start = time.perf_counter()
+        supa_user = await SupaService.get_supabase_user(self.userID)
+        if not supa_user:
+            logger.info(f"{interaction.user.name} hasn't signed into Supabase! Skipping sync...")
+        else:
+            for activity in self.chosenActivities:
+                try:
+                    activity_id = await SupaService.get_activity_id(activity)
+                    await SupaService.make_excuse_record(supa_user, activity_id, chosenExcuse)
+                except Exception as e:
+                    logger.error(f"Something went wrong when making excuse record: {e}", exc_info=True)
+            logger.info(f"Succesfully synced excuses to Supabase in {time.perf_counter() - supa_start:.8f} seconds")
+        
+        # Sync to Google Sheets
+        logger.info("Going to Sheets")
         worksheet = await (await SheetService.get_spreadsheet_client()).worksheet(self.username)
         worksheetID = worksheet.id
-        print(f"Got {self.username}'s worksheet")
+        logger.info(f"Got {self.username}'s worksheet")
 
 
         date = datetime.datetime.now()
