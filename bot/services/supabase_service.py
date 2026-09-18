@@ -10,11 +10,8 @@ import os
 import logging
 
 
-load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
 
 class SupaService:
     _db: AsyncClient | None = None
@@ -26,25 +23,26 @@ class SupaService:
         if cls._db is None:
             async with cls._lock:
                 if cls._db is None:
+                    load_dotenv()
                     SUPA_URL: str = os.environ.get("SUPABASE_URL")
                     SUPA_KEY: str = os.environ.get("SUPABASE_KEY")
                     cls._db = await create_async_client(SUPA_URL, SUPA_KEY)        
 
-    @classmethod
-    async def generate_user(cls, user: DiscordMember, sheet_format: str):
-        try:
-            await cls._db.table('users').insert({
-                "id": uuid.uuid4(),
-                "created_at": datetime.now(tz=timezone.utc).isoformat(),
-                "name": user.global_name,
-                "sheet_format": sheet_format,
-                "remind_at": None,
-                "utc_hour": None,
-                "utc_min": None,
-                "discord_id": str(user.id)
-            }).execute()
-        except Exception as e:
-            logger.error(f"Something went wrong in generating the user | {e}", exc_info=True)
+    # @classmethod
+    # async def generate_user(cls, user: DiscordMember, sheet_format: str):
+    #     try:
+    #         await cls._db.table('users').insert({
+    #             "id": uuid.uuid4(),
+    #             "created_at": datetime.now(tz=timezone.utc).isoformat(),
+    #             "name": user.global_name,
+    #             "sheet_format": sheet_format,
+    #             "remind_at": None,
+    #             "utc_hour": None,
+    #             "utc_min": None,
+    #             "discord_id": str(user.id)
+    #         }).execute()
+    #     except Exception as e:
+    #         logger.error(f"Something went wrong in generating the user | {e}", exc_info=True)
 
     @classmethod
     async def get_supabase_user(cls, discord_id: str) -> JSON | None:    
@@ -91,37 +89,12 @@ class SupaService:
         except APIError as e:
             logger.error(f"Something went wrong: {e}", exc_info=True)
 
-VALID_UTC_ = {
-    (-12,0), (-11,0),(-10,0),(-9,30),(-9,0),(-8,0),(-7,0),(-6,0),(-5,0), # 9 items
-    (-4,0),(-3,30),(-3,0),(-2,0),(-1,0),(0,0),(1,0),(2,0),(3,0),(3,30), # 10 items
-    (4,0),(4,30),(5,0),(5,30),(5,45),(6,0),(6,30),(7,0),(8,0),(8,45), # 10 items
-    (9,0),(9,30),(10,0),(10,30),(11,0),(12,0),(12,45),(13,0),(14,0) # 9 items
-}
-
-class SupaUserData:
-    def __init__(self,
-            id: uuid.uuid4,
-            name: str, 
-            created_at: datetime.isoformat,
-            sheet_format: str,            
-            remind_at: int | None = None,
-            utc_hour: int | None = None,
-            utc_min: int | None = None,
-            discord_id: str | None = None):
-
-        self.id = id
-        self.created_at = created_at
-        self.name = name
-        self.sheet_format = sheet_format
-        self.remind_at = remind_at
-        self.utc_hour = utc_hour
-        self.utc_min = utc_min
-        self.discord_id = discord_id
-    
-    def _validate_time(self):
-        self.timezone = (self.utc_hour, self.utc_min)
-        if self.timezone not in VALID_UTC_:
-            raise ValueError(f"Invalid timezone: {self.timezone[0]}:{self.timezone[1]}.")
+# VALID_UTC_ = {
+#     (-12,0), (-11,0),(-10,0),(-9,30),(-9,0),(-8,0),(-7,0),(-6,0),(-5,0), # 9 items
+#     (-4,0),(-3,30),(-3,0),(-2,0),(-1,0),(0,0),(1,0),(2,0),(3,0),(3,30), # 10 items
+#     (4,0),(4,30),(5,0),(5,30),(5,45),(6,0),(6,30),(7,0),(8,0),(8,45), # 10 items
+#     (9,0),(9,30),(10,0),(10,30),(11,0),(12,0),(12,45),(13,0),(14,0) # 9 items
+# }
 
 
 async def main():
