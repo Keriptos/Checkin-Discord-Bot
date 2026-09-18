@@ -3,13 +3,11 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-# Google Sheets Related Imports
+# Service Imports
 from bot.services.sheet_service import SheetService
-
-# Supabase Related Imports
 from bot.services.supabase_service import SupaService
 
-# Other Imports
+# Others
 import bot.helpers.utils as utls
 from bot.config_builder import ConfigDTO
 import datetime; from datetime import timedelta
