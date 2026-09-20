@@ -159,7 +159,8 @@ class CheckinMenu(discord.ui.Select): # A menu to select your activities up to 5
                 processStartTime = time.perf_counter()                             
                 await (await SheetService.get_spreadsheet_client()).batch_update({"requests": compiledRequests}) 
                 processEndTime = time.perf_counter()
-                print(f"Sucessfully checked in user in {processEndTime - processStartTime:.4f} seconds")            
+                print(f"Sucessfully checked in user in {processEndTime - processStartTime:.4f} seconds")
+                await interaction.followup.send(f"{interaction.user.mention} has checked in to Sheets for {', '.join(chosen)}")
         except Exception as error:
             print(f"An error has occured when batch-updatin, {error}\n") 
 
