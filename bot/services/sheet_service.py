@@ -87,7 +87,7 @@ class SheetService:
         return year_cell
 
     @classmethod
-    async def _get_year_division_cell(cls, user: dict, date: datetime.datetime) -> dict[str, int] | None:
+    async def _get_year_division_cell(cls, user: dict, year_cell: dict, date: datetime.datetime) -> dict[str, int] | None:
         start = time.perf_counter()
 
         username = user['username']
@@ -116,7 +116,7 @@ class SheetService:
                 selector = "Q4"
 
         targetted_row = cls._find_target_row_in_col(
-            start_row= 2,
+            start_row= year_cell['row'] + 2, # year_division cell is 2 rows after the year_cell.
             time_col= await cls._get_year_column(username),
             target= selector,
             skip= 36
@@ -131,7 +131,7 @@ class SheetService:
         start = time.perf_counter()
         user_format = user['format']
         year_cell = await cls._get_year_cell(user, date)
-        year_division_cell = await cls._get_year_division_cell(user, date)
+        year_division_cell = await cls._get_year_division_cell(user, year_cell, date)
         try:
             if user_format == "Yearly":
                 month_cell = {
