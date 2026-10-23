@@ -138,10 +138,10 @@ class SheetService:
                 "row": year_cell["row"],
                 "col": 5 + (date.month -  1)}
             else:
-                user_activities = user['activities']
+                user_activities = user['activities']                
                 month_cell = {
                     "row": year_division_cell["row"],
-                    "col": 5 + (len(user_activities) * ((date.month- 1) % (6 if user_format == "Semesterly" else 3)))}
+                    "col": 5 + (len(user_activities) * ((date.month- 1) % (6 if "Semesterly" in user_format else 3)))}
         except TypeError as e:
             logger.error(f" Year_division_cell is None | Error: {e}")
         end = time.perf_counter()
